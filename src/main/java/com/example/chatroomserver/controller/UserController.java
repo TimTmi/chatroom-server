@@ -1,8 +1,11 @@
 package com.example.chatroomserver.controller;
 
+import com.example.chatroomserver.dto.UserDto;
 import com.example.chatroomserver.entity.User;
 import com.example.chatroomserver.repository.UserRepository;
+import com.example.chatroomserver.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,33 +15,32 @@ import java.util.Optional;
 @RequestMapping("/api/users")
 public class UserController {
 
-    @Autowired
-    private UserRepository userRepo;
+    private final UserRepository userRepo;
+    private final UserService userService;
 
-    // Register new user
+    public UserController(UserService userService, UserRepository userRepo) {
+        this.userService = userService;
+        this.userRepo = userRepo;
+    }
+
     @PostMapping("/register")
-    public User registerUser(@RequestBody User user) {
-        // You should hash passwords in real use
-        return userRepo.save(user);
+    public ResponseEntity<String> register(@RequestBody UserDto userDto) {
+        userService.registerUser(userDto);
+        return ResponseEntity.ok("User registered successfully");
     }
 
-    // Simple login check
     @PostMapping("/login")
-    public String login(@RequestParam String username, @RequestParam String password) {
-        Optional<User> userOpt = Optional.ofNullable(userRepo.findByUsername(username));
-        if (userOpt.isPresent() && userOpt.get().getPassword().equals(password)) {
-            return "Login successful for user ID: " + userOpt.get().getId();
-        }
-        return "Invalid username or password";
+    public ResponseEntity<String> login(@RequestBody UserDto userDto) {
+        boolean success = userService.validate(userDto.getUsername(), userDto.getPassword());
+        if (success) return ResponseEntity.ok("Login successful");
+        else return ResponseEntity.status(401).body("Invalid credentials");
     }
 
-    // List all users
     @GetMapping
     public List<User> getAllUsers() {
         return userRepo.findAll();
     }
 
-    // Get user by ID
     @GetMapping("/{id}")
     public Optional<User> getUser(@PathVariable Integer id) {
         return userRepo.findById(id);
