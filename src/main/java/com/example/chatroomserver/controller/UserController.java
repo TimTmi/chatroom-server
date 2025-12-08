@@ -45,4 +45,14 @@ public class UserController {
     public Optional<User> getUser(@PathVariable Integer id) {
         return userRepo.findById(id);
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<User> updateUser(@PathVariable Integer id, @RequestBody UserDto userDto) {
+        try {
+            User updatedUser = userService.updateUser(id, userDto);
+            return ResponseEntity.ok(updatedUser);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }
