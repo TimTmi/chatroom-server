@@ -23,6 +23,18 @@ public class UserController {
         this.userRepo = userRepo;
     }
 
+    @GetMapping("/check-email")
+    public ResponseEntity<?> checkEmail(@RequestParam String email) {
+        boolean available = userService.isEmailAvailable(email);
+
+        if (available) {
+            return ResponseEntity.ok().build();   // 200 → available
+        } else {
+            return ResponseEntity.status(409).build(); // 409 → taken
+        }
+    }
+
+
     @PostMapping("/register")
     public ResponseEntity<String> register(@RequestBody UserDto userDto) {
         userService.registerUser(userDto);
