@@ -33,6 +33,16 @@ public class UserService {
     public boolean validate(String username, String password) {
         User user = userRepository.findByUsername(username);
         if (user == null) return false;
-        return user.getPassword().equals(password); // hash comparison in production
+        return user.getPassword().equals(password);
+    }
+
+    // Update user
+    public User updateUser(Integer id, UserDto dto) {
+        return userRepository.findById(id).map(user -> {
+            user.setFullName(dto.getFullName());
+            user.setEmail(dto.getEmail());
+            user.setAddress(dto.getAddress());
+            return userRepository.save(user);
+        }).orElseThrow(() -> new RuntimeException("User not found with id " + id));
     }
 }
