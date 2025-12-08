@@ -14,7 +14,10 @@ public class UserService {
     @Autowired
     private UserRepository userRepository;
 
-    // Register a new user
+    public boolean isEmailAvailable(String email) {
+        return !userRepository.existsByEmail(email);
+    }
+
     public User registerUser(UserDto dto) {
         User user = new User();
         user.setUsername(dto.getUsername());
@@ -29,10 +32,9 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    // Validate login credentials
     public boolean validate(String username, String password) {
         User user = userRepository.findByUsername(username);
         if (user == null) return false;
-        return user.getPassword().equals(password); // hash comparison in production
+        return user.getPassword().equals(password);
     }
 }
