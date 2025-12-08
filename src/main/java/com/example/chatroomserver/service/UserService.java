@@ -37,4 +37,13 @@ public class UserService {
         if (user == null) return false;
         return user.getPassword().equals(password);
     }
+
+    public User updateUser(Integer id, UserDto dto) {
+        return userRepository.findById(id).map(user -> {
+            user.setFullName(dto.getFullName());
+            user.setEmail(dto.getEmail());
+            user.setAddress(dto.getAddress());
+            return userRepository.save(user);
+        }).orElseThrow(() -> new RuntimeException("User not found with id " + id));
+    }
 }
