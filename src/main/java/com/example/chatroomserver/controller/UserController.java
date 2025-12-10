@@ -67,4 +67,24 @@ public class UserController {
             return ResponseEntity.notFound().build();
         }
     }
+
+    @PutMapping("/{id}/lock")
+    public ResponseEntity<String> lockUser(@PathVariable Integer id) {
+        try {
+            userService.lockUser(id);
+            return ResponseEntity.ok("User status updated");
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteUser(@PathVariable Integer id) {
+        try {
+            userService.deleteUser(id);
+            return ResponseEntity.ok("User deleted successfully");
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }
