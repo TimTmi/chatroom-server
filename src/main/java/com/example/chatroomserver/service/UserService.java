@@ -46,4 +46,24 @@ public class UserService {
             return userRepository.save(user);
         }).orElseThrow(() -> new RuntimeException("User not found with id " + id));
     }
+
+    public void lockUser(Integer id) {
+        userRepository.findById(id).map(user -> {
+            // Toggle logic: If locked -> unlock, If active -> lock
+            if (user.getStatus() == User.Status.LOCKED) {
+                user.setStatus(User.Status.ACTIVE);
+            } else {
+                user.setStatus(User.Status.LOCKED);
+            }
+            return userRepository.save(user);
+        }).orElseThrow(() -> new RuntimeException("User not found with id " + id));
+    }
+
+    public void deleteUser(Integer id) {
+        if (userRepository.existsById(id)) {
+            userRepository.deleteById(id);
+        } else {
+            throw new RuntimeException("User not found with id " + id);
+        }
+    }
 }
