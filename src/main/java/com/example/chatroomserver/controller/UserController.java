@@ -1,10 +1,10 @@
 package com.example.chatroomserver.controller;
 
 import com.example.chatroomserver.dto.UserDto;
+import com.example.chatroomserver.entity.PasswordRequest;
 import com.example.chatroomserver.entity.User;
 import com.example.chatroomserver.repository.UserRepository;
 import com.example.chatroomserver.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,17 +23,13 @@ public class UserController {
         this.userRepo = userRepo;
     }
 
+    // --- Basic User Management ---
+
     @GetMapping("/check-email")
     public ResponseEntity<?> checkEmail(@RequestParam String email) {
         boolean available = userService.isEmailAvailable(email);
-
-        if (available) {
-            return ResponseEntity.ok().build();   // 200 → available
-        } else {
-            return ResponseEntity.status(409).build(); // 409 → taken
-        }
+        return available ? ResponseEntity.ok().build() : ResponseEntity.status(409).build();
     }
-
 
     @PostMapping("/register")
     public ResponseEntity<String> register(@RequestBody UserDto userDto) {
@@ -56,6 +52,15 @@ public class UserController {
     @GetMapping("/{id}")
     public Optional<User> getUser(@PathVariable Integer id) {
         return userRepo.findById(id);
+    }
+
+    // --- Admin Features: Add, Update, Lock, Delete ---
+
+    // This handles "Add User" from Admin Dashboard (POST /api/users)
+    @PostMapping
+    public ResponseEntity<String> createUser(@RequestBody UserDto userDto) {
+        userService.registerUser(userDto);
+        return ResponseEntity.ok("User created successfully");
     }
 
     @PutMapping("/{id}")
@@ -85,6 +90,23 @@ public class UserController {
             return ResponseEntity.ok("User deleted successfully");
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    // --- Password Requests ---
+
+    @GetMapping("/password-requests")
+    public List<PasswordRequest> getPasswordRequests() {
+        return userService.getAllPasswordRequests();
+    }
+
+    @PostMapping("/password-requests/{id}/approve")
+    public ResponseEntity<String> approveReset(@PathVariable Integer id) {
+        try {
+            userService.approvePasswordReset(id);
+            return ResponseEntity.ok("Password reset approved");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         }
     }
 }
