@@ -7,6 +7,9 @@ import com.example.chatroomserver.repository.UserRepository;
 import com.example.chatroomserver.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.example.chatroomserver.entity.LoginHistory;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
 import java.util.Optional;
@@ -38,10 +41,30 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody UserDto userDto) {
+    public ResponseEntity<String> login(@RequestBody UserDto userDto, HttpServletRequest request) {
         boolean success = userService.validate(userDto.getUsername(), userDto.getPassword());
-        if (success) return ResponseEntity.ok("Login successful");
-        else return ResponseEntity.status(401).body("Invalid credentials");
+        if (success) {
+            // Lấy IP người dùng (xử lý cả trường hợp đứng sau proxy)
+            String ip = request.getHeader("X-Forwarded-For");
+            if (ip == null || ip.isEmpty()) {
+                ip = request.getRemoteAddr();
+            }
+
+            userService.logLogin(userDto.getUsername(), ip); // Truyền IP vào service
+            return ResponseEntity.ok("Login successful");
+        } else {
+            return ResponseEntity.status(401).body("Invalid credentials");
+        }
+    }
+
+    @GetMapping("/login-history")
+    public List<LoginHistory> getLoginHistory() {
+        return userService.getSystemLoginHistory();
+    }
+
+    @GetMapping("/{username}/login-history")
+    public List<LoginHistory> getUserLoginHistory(@PathVariable String username) {
+        return userService.getUserLoginHistory(username);
     }
 
     @GetMapping
@@ -56,7 +79,6 @@ public class UserController {
 
     // --- Admin Features: Add, Update, Lock, Delete ---
 
-    // This handles "Add User" from Admin Dashboard (POST /api/users)
     @PostMapping
     public ResponseEntity<String> createUser(@RequestBody UserDto userDto) {
         userService.registerUser(userDto);
@@ -92,8 +114,6 @@ public class UserController {
             return ResponseEntity.notFound().build();
         }
     }
-
-    // --- Password Requests ---
 
     @GetMapping("/password-requests")
     public List<PasswordRequest> getPasswordRequests() {
