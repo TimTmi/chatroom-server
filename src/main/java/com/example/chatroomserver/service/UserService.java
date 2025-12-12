@@ -7,6 +7,10 @@ import com.example.chatroomserver.repository.PasswordRequestRepository;
 import com.example.chatroomserver.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import com.example.chatroomserver.entity.LoginHistory;
+import com.example.chatroomserver.repository.LoginHistoryRepository;
+
+
 
 import java.util.List;
 
@@ -18,6 +22,9 @@ public class UserService {
 
     @Autowired
     private PasswordRequestRepository passwordRequestRepository;
+
+    @Autowired
+    private LoginHistoryRepository loginHistoryRepository;
 
     public boolean isEmailAvailable(String email) {
         return !userRepository.existsByEmail(email);
@@ -118,5 +125,21 @@ public class UserService {
             userRepository.save(user);
         }
         passwordRequestRepository.delete(request);
+    }
+
+    public void logLogin(String username, String ipAddress) {
+        User user = userRepository.findByUsername(username);
+        if (user != null) {
+            // Save with IP
+            LoginHistory history = new LoginHistory(user.getUsername(), user.getFullName(), ipAddress);
+            loginHistoryRepository.save(history);
+        }
+    }
+
+    public List<LoginHistory> getSystemLoginHistory() {
+        return loginHistoryRepository.findAllByOrderByLoginTimeDesc();
+    }
+    public List<LoginHistory> getUserLoginHistory(String username) {
+        return loginHistoryRepository.findByUsernameOrderByLoginTimeDesc(username);
     }
 }
