@@ -8,6 +8,7 @@ import com.example.chatroomserver.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.example.chatroomserver.entity.LoginHistory;
+import com.example.chatroomserver.dto.ChangePasswordRequest;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -41,17 +42,19 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody UserDto userDto, HttpServletRequest request) {
+    public ResponseEntity<?> login(@RequestBody UserDto userDto, HttpServletRequest request) {
         boolean success = userService.validate(userDto.getUsername(), userDto.getPassword());
         if (success) {
-            // Lấy IP người dùng (xử lý cả trường hợp đứng sau proxy)
+            // 1. Log the IP
             String ip = request.getHeader("X-Forwarded-For");
             if (ip == null || ip.isEmpty()) {
                 ip = request.getRemoteAddr();
             }
+            userService.logLogin(userDto.getUsername(), ip);
 
-            userService.logLogin(userDto.getUsername(), ip); // Truyền IP vào service
-            return ResponseEntity.ok("Login successful");
+            // 2. FETCH AND RETURN THE ACTUAL USER (Crucial for Client)
+            User user = userRepo.findByUsername(userDto.getUsername());
+            return ResponseEntity.ok(user);
         } else {
             return ResponseEntity.status(401).body("Invalid credentials");
         }
@@ -77,7 +80,7 @@ public class UserController {
         return userRepo.findById(id);
     }
 
-    // --- Admin Features: Add, Update, Lock, Delete ---
+    // --- Admin & Update Features ---
 
     @PostMapping
     public ResponseEntity<String> createUser(@RequestBody UserDto userDto) {
@@ -85,14 +88,35 @@ public class UserController {
         return ResponseEntity.ok("User created successfully");
     }
 
+    // THIS IS THE CORRECT, ROBUST UPDATE METHOD (Duplicates Removed)
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Integer id, @RequestBody UserDto userDto) {
-        try {
-            User updatedUser = userService.updateUser(id, userDto);
-            return ResponseEntity.ok(updatedUser);
-        } catch (RuntimeException e) {
+    public ResponseEntity<?> updateUser(@PathVariable Integer id, @RequestBody UserDto updatedData) {
+        User existingUser = userService.getUserById(id);
+        if (existingUser == null) {
             return ResponseEntity.notFound().build();
         }
+
+        // Update fields safely (checking for nulls)
+        if (updatedData.getFullName() != null) existingUser.setFullName(updatedData.getFullName());
+        if (updatedData.getEmail() != null) existingUser.setEmail(updatedData.getEmail());
+        if (updatedData.getAddress() != null) existingUser.setAddress(updatedData.getAddress());
+
+        // Gender Update
+        if (updatedData.getGender() != null) {
+            try {
+                existingUser.setGender(User.Gender.valueOf(updatedData.getGender().toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                // Ignore invalid gender
+            }
+        }
+
+        // Date Update
+        if (updatedData.getDob() != null) {
+            existingUser.setDob(updatedData.getDob().atStartOfDay());
+        }
+
+        userService.saveUser(existingUser);
+        return ResponseEntity.ok("User updated successfully");
     }
 
     @PutMapping("/{id}/lock")
@@ -115,6 +139,8 @@ public class UserController {
         }
     }
 
+    // --- Password Features ---
+
     @GetMapping("/password-requests")
     public List<PasswordRequest> getPasswordRequests() {
         return userService.getAllPasswordRequests();
@@ -127,6 +153,16 @@ public class UserController {
             return ResponseEntity.ok("Password reset approved");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/password")
+    public ResponseEntity<String> changePassword(@PathVariable Integer id, @RequestBody ChangePasswordRequest request) {
+        boolean success = userService.changePassword(id, request.getOldPassword(), request.getNewPassword());
+        if (success) {
+            return ResponseEntity.ok("Password changed successfully");
+        } else {
+            return ResponseEntity.status(401).body("Incorrect old password");
         }
     }
 }
