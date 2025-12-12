@@ -136,10 +136,32 @@ public class UserService {
         }
     }
 
+    public boolean changePassword(Integer userId, String oldPassword, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!user.getPassword().equals(oldPassword)) {
+            return false;
+        }
+
+        user.setPassword(newPassword);
+        userRepository.save(user);
+        return true;
+    }
+
     public List<LoginHistory> getSystemLoginHistory() {
         return loginHistoryRepository.findAllByOrderByLoginTimeDesc();
     }
+
     public List<LoginHistory> getUserLoginHistory(String username) {
         return loginHistoryRepository.findByUsernameOrderByLoginTimeDesc(username);
+    }
+
+    public User getUserById(Integer id) {
+        return userRepository.findById(id).orElse(null);
+    }
+
+    public User saveUser(User user) {
+        return userRepository.save(user);
     }
 }

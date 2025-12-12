@@ -14,7 +14,7 @@ public class LoginHistory {
 
     private String username;
     private String fullName;
-    private String ipAddress; // <--- NEW FIELD
+    private String ipAddress;
     private LocalDateTime loginTime;
 
     public LoginHistory() {}
@@ -33,8 +33,8 @@ public class LoginHistory {
     public void setUsername(String username) { this.username = username; }
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }
-    public String getIpAddress() { return ipAddress; } // <--- NEW GETTER
-    public void setIpAddress(String ipAddress) { this.ipAddress = ipAddress; } // <--- NEW SETTER
+    public String getIpAddress() { return ipAddress; }
+    public void setIpAddress(String ipAddress) { this.ipAddress = ipAddress; }
     public LocalDateTime getLoginTime() { return loginTime; }
     public void setLoginTime(LocalDateTime loginTime) { this.loginTime = loginTime; }
 }
