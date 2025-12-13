@@ -4,6 +4,7 @@ import java.time.LocalDate;
 
 public class UserDto {
 
+    private Integer id;
     private String username;
     private String password;
     private String fullName;
@@ -13,6 +14,14 @@ public class UserDto {
     private LocalDate dob;
 
     public UserDto() {
+    }
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
     }
 
     public String getUsername() {
@@ -70,4 +79,5 @@ public class UserDto {
     public void setDob(LocalDate dob) {
         this.dob = dob;
     }
+
 }
