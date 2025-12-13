@@ -106,7 +106,7 @@ public class UserController {
             try {
                 existingUser.setGender(User.Gender.valueOf(updatedData.getGender().toUpperCase()));
             } catch (IllegalArgumentException e) {
-                // Ignore invalid gender
+                return ResponseEntity.badRequest().body("Invalid gender value");
             }
         }
 
@@ -163,6 +163,21 @@ public class UserController {
             return ResponseEntity.ok("Password changed successfully");
         } else {
             return ResponseEntity.status(401).body("Incorrect old password");
+        }
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(@RequestBody ChangePasswordRequest request) {
+        boolean success = userService.requestPasswordReset(
+                request.getUsername(),
+                request.getOldPassword(), 
+                request.getNewPassword()
+        );
+
+        if (success) {
+            return ResponseEntity.ok("Request sent to admin");
+        } else {
+            return ResponseEntity.badRequest().body("Username and Email do not match");
         }
     }
 }

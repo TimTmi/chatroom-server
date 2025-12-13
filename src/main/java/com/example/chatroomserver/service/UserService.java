@@ -66,23 +66,20 @@ public class UserService {
         return user.getPassword().equals(password);
     }
 
-    // --- UPDATED THIS FUNCTION ---
     public User updateUser(Integer id, UserDto dto) {
         return userRepository.findById(id).map(user -> {
             user.setFullName(dto.getFullName());
             user.setEmail(dto.getEmail());
             user.setAddress(dto.getAddress());
 
-            // 1. Update Gender
             if (dto.getGender() != null) {
                 try {
                     user.setGender(User.Gender.valueOf(dto.getGender().toUpperCase()));
                 } catch (IllegalArgumentException e) {
-                    // keep old gender or set to OTHER if invalid
+                    user.setGender(User.Gender.OTHER);
                 }
             }
 
-            // 2. Update DOB
             if (dto.getDob() != null) {
                 user.setDob(dto.getDob().atStartOfDay());
             }
@@ -110,9 +107,20 @@ public class UserService {
         }
     }
 
-    // --- Password Request Logic ---
     public List<PasswordRequest> getAllPasswordRequests() {
         return passwordRequestRepository.findAll();
+    }
+
+    public boolean requestPasswordReset(String username, String email, String newPassword) {
+        User user = userRepository.findByUsername(username);
+
+        if (user == null || !user.getEmail().equalsIgnoreCase(email)) {
+            return false;
+        }
+
+        PasswordRequest request = new PasswordRequest(username, newPassword);
+        passwordRequestRepository.save(request);
+        return true;
     }
 
     public void approvePasswordReset(Integer requestId) {
@@ -121,7 +129,7 @@ public class UserService {
 
         User user = userRepository.findByUsername(request.getUsername());
         if (user != null) {
-            user.setPassword("123456");
+            user.setPassword(request.getNewPassword());
             userRepository.save(user);
         }
         passwordRequestRepository.delete(request);
@@ -130,7 +138,6 @@ public class UserService {
     public void logLogin(String username, String ipAddress) {
         User user = userRepository.findByUsername(username);
         if (user != null) {
-            // Save with IP
             LoginHistory history = new LoginHistory(user.getUsername(), user.getFullName(), ipAddress);
             loginHistoryRepository.save(history);
         }
