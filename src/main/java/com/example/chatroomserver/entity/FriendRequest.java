@@ -20,7 +20,8 @@ public class FriendRequest {
 
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    public enum Status { PENDING, ACCEPTED }
+    // ADDED "BLOCKED" HERE
+    public enum Status { PENDING, ACCEPTED, BLOCKED }
 
     public FriendRequest() {}
     public FriendRequest(User sender, User receiver, Status status) {
@@ -28,7 +29,7 @@ public class FriendRequest {
         this.receiver = receiver;
         this.status = status;
     }
-    // Getters/Setters
+    // Getters/Setters...
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
     public User getSender() { return sender; }

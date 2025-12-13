@@ -21,6 +21,7 @@ public class FriendService {
         return users.stream()
                 .filter(u -> !u.getId().equals(currentUserId))
                 .filter(u -> !friendRequestRepository.existsByUsers(currentUser, u))
+                .filter(u -> !friendRequestRepository.existsBySenderAndReceiverAndStatus(u, currentUser, FriendRequest.Status.BLOCKED))
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
     }
@@ -28,8 +29,45 @@ public class FriendService {
     public void sendRequest(Integer senderId, Integer receiverId) {
         User sender = userRepository.findById(senderId).orElseThrow();
         User receiver = userRepository.findById(receiverId).orElseThrow();
+
+        boolean isBlocked = friendRequestRepository.existsBySenderAndReceiverAndStatus(receiver, sender, FriendRequest.Status.BLOCKED);
+        if (isBlocked) throw new RuntimeException("Blocked");
+
         if (!friendRequestRepository.existsByUsers(sender, receiver)) {
             friendRequestRepository.save(new FriendRequest(sender, receiver, FriendRequest.Status.PENDING));
+        }
+    }
+
+    // --- SAFETY UPDATE: Delete ALL existing relationships before blocking/unfriending ---
+    public void unfriend(Integer userId, Integer friendId) {
+        User u1 = userRepository.findById(userId).orElseThrow();
+        User u2 = userRepository.findById(friendId).orElseThrow();
+        List<FriendRequest> rels = friendRequestRepository.findRelationship(u1, u2);
+        friendRequestRepository.deleteAll(rels); // Delete ALL found rows
+    }
+
+    public void blockUser(Integer blockerId, Integer targetId) {
+        User blocker = userRepository.findById(blockerId).orElseThrow();
+        User target = userRepository.findById(targetId).orElseThrow();
+
+        // 1. Delete ANY existing relationship (Friend, Request, etc.)
+        List<FriendRequest> rels = friendRequestRepository.findRelationship(blocker, target);
+        friendRequestRepository.deleteAll(rels);
+
+        // 2. Add Block
+        friendRequestRepository.save(new FriendRequest(blocker, target, FriendRequest.Status.BLOCKED));
+    }
+
+    public void unblockUser(Integer blockerId, Integer targetId) {
+        User blocker = userRepository.findById(blockerId).orElseThrow();
+        User target = userRepository.findById(targetId).orElseThrow();
+
+        List<FriendRequest> rels = friendRequestRepository.findRelationship(blocker, target);
+        for (FriendRequest r : rels) {
+            // Only delete the BLOCK row I created
+            if (r.getStatus() == FriendRequest.Status.BLOCKED && r.getSender().getId().equals(blockerId)) {
+                friendRequestRepository.delete(r);
+            }
         }
     }
 
@@ -38,7 +76,7 @@ public class FriendService {
         return friendRequestRepository.findByReceiverAndStatus(receiver, FriendRequest.Status.PENDING)
                 .stream().map(req -> {
                     UserDto dto = convertToDto(req.getSender());
-                    dto.setId(req.getId()); // HACK: Use DTO ID to store REQUEST ID for accepting
+                    dto.setId(req.getId()); // Request ID
                     return dto;
                 }).collect(Collectors.toList());
     }
@@ -47,6 +85,13 @@ public class FriendService {
         User user = userRepository.findById(userId).orElseThrow();
         return friendRequestRepository.findAllFriends(user).stream()
                 .map(f -> convertToDto(f.getSender().getId().equals(userId) ? f.getReceiver() : f.getSender()))
+                .collect(Collectors.toList());
+    }
+
+    public List<UserDto> getBlockedList(Integer userId) {
+        User user = userRepository.findById(userId).orElseThrow();
+        return friendRequestRepository.findBySenderAndStatus(user, FriendRequest.Status.BLOCKED).stream()
+                .map(req -> convertToDto(req.getReceiver()))
                 .collect(Collectors.toList());
     }
 
