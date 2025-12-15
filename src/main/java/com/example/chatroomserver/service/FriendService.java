@@ -112,4 +112,21 @@ public class FriendService {
         dto.setFullName(u.getFullName());
         return dto;
     }
+
+    public List<com.example.chatroomserver.dto.FriendshipDto> getFriendshipDetails(Integer userId) {
+        User user = userRepository.findById(userId).orElseThrow();
+
+        // Reuse the existing repository method that finds accepted requests
+        return friendRequestRepository.findAllFriends(user).stream()
+                .map(req -> {
+                    // Determine which user is the "friend"
+                    User friend = req.getSender().getId().equals(userId) ? req.getReceiver() : req.getSender();
+
+                    return new com.example.chatroomserver.dto.FriendshipDto(
+                            friend.getUsername(),
+                            req.getStatus().toString(),
+                            req.getCreatedAt().toLocalDate().toString() // Convert timestamp to Date string
+                    );
+                }).collect(Collectors.toList());
+    }
 }

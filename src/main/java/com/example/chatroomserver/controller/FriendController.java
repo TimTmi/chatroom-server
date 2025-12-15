@@ -65,4 +65,9 @@ public class FriendController {
     public List<UserDto> getBlocked(@RequestParam Integer userId) {
         return friendService.getBlockedList(userId);
     }
+
+    @GetMapping("/details")
+    public List<com.example.chatroomserver.dto.FriendshipDto> getFriendshipDetails(@RequestParam Integer userId) {
+        return friendService.getFriendshipDetails(userId);
+    }
 }
