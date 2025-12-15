@@ -70,4 +70,9 @@ public class FriendController {
     public List<com.example.chatroomserver.dto.FriendshipDto> getFriendshipDetails(@RequestParam Integer userId) {
         return friendService.getFriendshipDetails(userId);
     }
+
+    @GetMapping("/admin/stats")
+    public List<com.example.chatroomserver.dto.UserFriendStatsDto> getUserStats() {
+        return friendService.getAllUserFriendStats();
+    }
 }
