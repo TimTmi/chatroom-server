@@ -4,18 +4,27 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "chat_groups")
-public class ChatGroup {
+@Table(name = "conversations")
+public class Conversation {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    private ConversationType type;
+
+    @Column(length = 191)
     private String name;
 
+    @Column(name = "is_encrypted")
     private Boolean isEncrypted = false;
-    private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    // --- getters & setters ---
 
     public Integer getId() {
         return id;
@@ -23,6 +32,14 @@ public class ChatGroup {
 
     public void setId(Integer id) {
         this.id = id;
+    }
+
+    public ConversationType getType() {
+        return type;
+    }
+
+    public void setType(ConversationType type) {
+        this.type = type;
     }
 
     public String getName() {

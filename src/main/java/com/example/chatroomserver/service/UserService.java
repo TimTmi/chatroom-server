@@ -1,9 +1,7 @@
 package com.example.chatroomserver.service;
 
 import com.example.chatroomserver.dto.UserDto;
-import com.example.chatroomserver.entity.PasswordRequest;
 import com.example.chatroomserver.entity.User;
-import com.example.chatroomserver.repository.PasswordRequestRepository;
 import com.example.chatroomserver.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,9 +17,6 @@ public class UserService {
 
     @Autowired
     private UserRepository userRepository;
-
-    @Autowired
-    private PasswordRequestRepository passwordRequestRepository;
 
     @Autowired
     private LoginHistoryRepository loginHistoryRepository;
@@ -60,10 +55,11 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    public boolean validate(String username, String password) {
+    public User validate(String username, String password) {
         User user = userRepository.findByUsername(username);
-        if (user == null) return false;
-        return user.getPassword().equals(password);
+        if (user == null) return null;
+        if (user.getPassword().equals(password)) return user;
+        return null;
     }
 
     public User updateUser(Integer id, UserDto dto) {
@@ -107,36 +103,8 @@ public class UserService {
         }
     }
 
-    public List<PasswordRequest> getAllPasswordRequests() {
-        return passwordRequestRepository.findAll();
-    }
-
-    public boolean requestPasswordReset(String username, String email, String newPassword) {
-        User user = userRepository.findByUsername(username);
-
-        if (user == null || !user.getEmail().equalsIgnoreCase(email)) {
-            return false;
-        }
-
-        PasswordRequest request = new PasswordRequest(username, newPassword);
-        passwordRequestRepository.save(request);
-        return true;
-    }
-
-    public void approvePasswordReset(Integer requestId) {
-        PasswordRequest request = passwordRequestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Request not found"));
-
-        User user = userRepository.findByUsername(request.getUsername());
-        if (user != null) {
-            user.setPassword(request.getNewPassword());
-            userRepository.save(user);
-        }
-        passwordRequestRepository.delete(request);
-    }
-
-    public void logLogin(String username, String ipAddress) {
-        User user = userRepository.findByUsername(username);
+    public void logLogin(User user, String ipAddress) {
+//        User user = userRepository.findByUsername(username);
         if (user != null) {
             LoginHistory history = new LoginHistory(user.getUsername(), user.getFullName(), ipAddress);
             loginHistoryRepository.save(history);
@@ -144,15 +112,15 @@ public class UserService {
     }
 
     public boolean changePassword(Integer userId, String oldPassword, String newPassword) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        if (!user.getPassword().equals(oldPassword)) {
-            return false;
-        }
-
-        user.setPassword(newPassword);
-        userRepository.save(user);
+//        User user = userRepository.findById(userId)
+//                .orElseThrow(() -> new RuntimeException("User not found"));
+//
+//        if (!user.getPassword().equals(oldPassword)) {
+//            return false;
+//        }
+//
+//        user.setPassword(newPassword);
+//        userRepository.save(user);
         return true;
     }
 

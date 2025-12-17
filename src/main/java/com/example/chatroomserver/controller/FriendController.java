@@ -1,78 +1,110 @@
 package com.example.chatroomserver.controller;
 
+import com.example.chatroomserver.dto.FriendshipDto;
 import com.example.chatroomserver.dto.UserDto;
+import com.example.chatroomserver.dto.UserFriendStatsDto;
 import com.example.chatroomserver.service.FriendService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/friends")
 public class FriendController {
 
-    @Autowired private FriendService friendService;
+    @Autowired
+    private FriendService friendService;
 
-    // --- SEARCH & REQUESTS ---
+    // ---- SEARCH ----
     @GetMapping("/search")
-    public List<UserDto> search(@RequestParam String q, @RequestParam Integer userId) {
+    public List<UserDto> searchUsers(
+            @RequestParam String q,
+            @RequestParam Integer userId
+    ) {
         return friendService.searchUsers(q, userId);
     }
 
-    @PostMapping("/request")
-    public ResponseEntity<String> sendRequest(@RequestParam Integer senderId, @RequestParam Integer receiverId) {
+    // ---- FRIEND REQUESTS ----
+    @PostMapping("/requests")
+    public ResponseEntity<Void> sendRequest(
+            @RequestParam Integer senderId,
+            @RequestParam Integer receiverId
+    ) {
         friendService.sendRequest(senderId, receiverId);
-        return ResponseEntity.ok("Sent");
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/requests")
-    public List<UserDto> getRequests(@RequestParam Integer userId) {
+    public List<UserDto> getPendingRequests(
+            @RequestParam Integer userId
+    ) {
         return friendService.getPendingRequests(userId);
     }
 
-    @PostMapping("/requests/{id}")
-    public ResponseEntity<String> respond(@PathVariable Integer id, @RequestParam boolean accept) {
-        friendService.respondToRequest(id, accept);
-        return ResponseEntity.ok(accept ? "Accepted" : "Declined");
+    @PostMapping("/requests/{requestId}/response")
+    public ResponseEntity<Void> respondToRequest(
+            @PathVariable Integer requestId,
+            @RequestParam boolean accept
+    ) {
+        friendService.respondToRequest(requestId, accept);
+        return ResponseEntity.ok().build();
     }
 
+    // ---- FRIEND LIST ----
     @GetMapping
-    public List<UserDto> getFriends(@RequestParam Integer userId) {
+    public List<UserDto> getFriends(
+            @RequestParam Integer userId
+    ) {
         return friendService.getFriendList(userId);
     }
 
-    // --- NEW ENDPOINTS (THESE WERE MISSING) ---
-
-    @PostMapping("/unfriend")
-    public ResponseEntity<String> unfriend(@RequestParam Integer userId, @RequestParam Integer friendId) {
+    @DeleteMapping
+    public ResponseEntity<Void> unfriend(
+            @RequestParam Integer userId,
+            @RequestParam Integer friendId
+    ) {
         friendService.unfriend(userId, friendId);
-        return ResponseEntity.ok("Unfriended");
+        return ResponseEntity.ok().build();
     }
 
+    // ---- BLOCKING ----
     @PostMapping("/block")
-    public ResponseEntity<String> block(@RequestParam Integer userId, @RequestParam Integer targetId) {
+    public ResponseEntity<Void> blockUser(
+            @RequestParam Integer userId,
+            @RequestParam Integer targetId
+    ) {
         friendService.blockUser(userId, targetId);
-        return ResponseEntity.ok("Blocked");
+        return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/unblock")
-    public ResponseEntity<String> unblock(@RequestParam Integer userId, @RequestParam Integer targetId) {
+    @DeleteMapping("/block")
+    public ResponseEntity<Void> unblockUser(
+            @RequestParam Integer userId,
+            @RequestParam Integer targetId
+    ) {
         friendService.unblockUser(userId, targetId);
-        return ResponseEntity.ok("Unblocked");
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/blocked")
-    public List<UserDto> getBlocked(@RequestParam Integer userId) {
+    public List<UserDto> getBlockedUsers(
+            @RequestParam Integer userId
+    ) {
         return friendService.getBlockedList(userId);
     }
 
+    // ---- DEBUG / ADMIN ----
     @GetMapping("/details")
-    public List<com.example.chatroomserver.dto.FriendshipDto> getFriendshipDetails(@RequestParam Integer userId) {
+    public List<FriendshipDto> getFriendshipDetails(
+            @RequestParam Integer userId
+    ) {
         return friendService.getFriendshipDetails(userId);
     }
 
     @GetMapping("/admin/stats")
-    public List<com.example.chatroomserver.dto.UserFriendStatsDto> getUserStats() {
+    public List<UserFriendStatsDto> getAllUserStats() {
         return friendService.getAllUserFriendStats();
     }
 }

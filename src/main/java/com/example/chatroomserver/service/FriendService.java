@@ -3,6 +3,7 @@ package com.example.chatroomserver.service;
 import com.example.chatroomserver.dto.UserDto;
 import com.example.chatroomserver.dto.FriendshipDto;
 import com.example.chatroomserver.dto.UserFriendStatsDto;
+import com.example.chatroomserver.entity.Conversation;
 import com.example.chatroomserver.entity.FriendRequest;
 import com.example.chatroomserver.entity.User;
 import com.example.chatroomserver.repository.FriendRequestRepository;
@@ -21,6 +22,7 @@ public class FriendService {
 
     @Autowired private UserRepository userRepository;
     @Autowired private FriendRequestRepository friendRequestRepository;
+    @Autowired private ConversationService conversationService;
 
     // --- SEARCH ---
     public List<UserDto> searchUsers(String keyword, Integer currentUserId) {
@@ -74,13 +76,22 @@ public class FriendService {
 
     public void respondToRequest(Integer requestId, boolean accept) {
         FriendRequest req = friendRequestRepository.findById(requestId).orElseThrow();
+
         if (accept) {
             req.setStatus(FriendRequest.Status.ACCEPTED);
             friendRequestRepository.save(req);
+
+            // NEW: create private conversation
+            Conversation conv = conversationService.createDirectConversation(
+                    req.getSender().getId(),
+                    req.getReceiver().getId()
+            );
+
         } else {
             friendRequestRepository.delete(req);
         }
     }
+
 
     // --- GET LISTS ---
 
