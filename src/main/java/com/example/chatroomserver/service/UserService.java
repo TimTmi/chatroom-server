@@ -171,4 +171,20 @@ public class UserService {
     public User saveUser(User user) {
         return userRepository.save(user);
     }
+
+    public List<UserDto> searchUsers(String query, Integer currentUserId) {
+        // Find users matching username OR fullname
+        List<User> users = userRepository.findByUsernameContainingOrFullNameContaining(query, query);
+
+        return users.stream()
+                .filter(u -> !u.getId().equals(currentUserId)) // Exclude self
+                .map(u -> {
+                    UserDto dto = new UserDto();
+                    dto.setId(u.getId());
+                    dto.setUsername(u.getUsername());
+                    dto.setFullName(u.getFullName());
+                    return dto;
+                })
+                .collect(java.util.stream.Collectors.toList());
+    }
 }

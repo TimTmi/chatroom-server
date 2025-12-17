@@ -180,4 +180,9 @@ public class UserController {
             return ResponseEntity.badRequest().body("Username and Email do not match");
         }
     }
+
+    @GetMapping("/search")
+    public List<UserDto> searchUsers(@RequestParam String q, @RequestParam Integer userId) {
+        return userService.searchUsers(q, userId);
+    }
 }
