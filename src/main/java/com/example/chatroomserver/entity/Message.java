@@ -11,80 +11,39 @@ public class Message {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @ManyToOne
-    @JoinColumn(name = "senderId", nullable = false)
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "conversation_id")
+    private Conversation conversation;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "sender_id")
     private User sender;
 
-    @ManyToOne
-    @JoinColumn(name = "receiverId")
-    private User receiver;
-
-    @ManyToOne
-    @JoinColumn(name = "groupId")
-    private ChatGroup group;
-
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(nullable = false)
     private String content;
 
+    @Column(nullable = false)
     private LocalDateTime sentAt = LocalDateTime.now();
 
-    private Boolean isDeleted = false;
+    @Column(nullable = false)
+    private boolean isDeleted = false;
 
-    // --- Getters and Setters ---
+    // getters & setters
+    public Integer getId() { return id; }
+    public void setId(Integer id) { this.id = id; }
 
-    public Integer getId() {
-        return id;
-    }
+    public Conversation getConversation() { return conversation; }
+    public void setConversation(Conversation conversation) { this.conversation = conversation; }
 
-    public void setId(Integer id) {
-        this.id = id;
-    }
+    public User getSender() { return sender; }
+    public void setSender(User sender) { this.sender = sender; }
 
-    public User getSender() {
-        return sender;
-    }
+    public String getContent() { return content; }
+    public void setContent(String content) { this.content = content; }
 
-    public void setSender(User sender) {
-        this.sender = sender;
-    }
+    public LocalDateTime getSentAt() { return sentAt; }
+    public void setSentAt(LocalDateTime sentAt) { this.sentAt = sentAt; }
 
-    public User getReceiver() {
-        return receiver;
-    }
-
-    public void setReceiver(User receiver) {
-        this.receiver = receiver;
-    }
-
-    public ChatGroup getGroup() {
-        return group;
-    }
-
-    public void setGroup(ChatGroup group) {
-        this.group = group;
-    }
-
-    public String getContent() {
-        return content;
-    }
-
-    public void setContent(String content) {
-        this.content = content;
-    }
-
-    public LocalDateTime getSentAt() {
-        return sentAt;
-    }
-
-    public void setSentAt(LocalDateTime sentAt) {
-        this.sentAt = sentAt;
-    }
-
-    public Boolean getIsDeleted() {
-        return isDeleted;
-    }
-
-    public void setIsDeleted(Boolean isDeleted) {
-        this.isDeleted = isDeleted;
-    }
+    public boolean isDeleted() { return isDeleted; }
+    public void setDeleted(boolean deleted) { isDeleted = deleted; }
 }
