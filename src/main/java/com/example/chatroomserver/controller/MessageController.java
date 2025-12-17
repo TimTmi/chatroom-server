@@ -2,10 +2,10 @@ package com.example.chatroomserver.controller;
 
 import com.example.chatroomserver.entity.Message;
 import com.example.chatroomserver.entity.User;
-import com.example.chatroomserver.entity.ChatGroup;
+import com.example.chatroomserver.entity.GroupChat; // New Import
 import com.example.chatroomserver.repository.MessageRepository;
 import com.example.chatroomserver.repository.UserRepository;
-import com.example.chatroomserver.repository.ChatGroupRepository;
+import com.example.chatroomserver.repository.GroupChatRepository; // New Import
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,21 +17,15 @@ import java.util.Optional;
 @RequestMapping("/api/messages")
 public class MessageController {
 
-    @Autowired
-    private MessageRepository messageRepo;
+    @Autowired private MessageRepository messageRepo;
+    @Autowired private UserRepository userRepo;
+    @Autowired private GroupChatRepository groupRepo; // Uses new Repo
 
-    @Autowired
-    private UserRepository userRepo;
-
-    @Autowired
-    private ChatGroupRepository groupRepo;
-
-    // Send message to a user
+    // Send message to a user (Direct Message)
     @PostMapping("/user")
     public Message sendMessageToUser(@RequestParam Integer senderId,
                                      @RequestParam Integer receiverId,
                                      @RequestParam String content) {
-
         Optional<User> senderOpt = userRepo.findById(senderId);
         Optional<User> receiverOpt = userRepo.findById(receiverId);
 
@@ -56,7 +50,7 @@ public class MessageController {
                                       @RequestParam String content) {
 
         Optional<User> senderOpt = userRepo.findById(senderId);
-        Optional<ChatGroup> groupOpt = groupRepo.findById(groupId);
+        Optional<GroupChat> groupOpt = groupRepo.findById(groupId); // Using GroupChat
 
         if (senderOpt.isEmpty() || groupOpt.isEmpty()) {
             throw new RuntimeException("Sender or group not found");
@@ -81,6 +75,6 @@ public class MessageController {
     // Get messages in a group
     @GetMapping("/group/{groupId}")
     public List<Message> getMessagesForGroup(@PathVariable Integer groupId) {
-        return messageRepo.findByGroupIdAndIsDeletedFalse(groupId);
+        return messageRepo.findByGroup_IdAndIsDeletedFalse(groupId);
     }
 }
