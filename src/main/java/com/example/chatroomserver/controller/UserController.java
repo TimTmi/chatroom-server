@@ -23,24 +23,33 @@ public class UserController {
         this.userRepo = userRepo;
     }
 
-    // --- NEW: Fixes AdminUserViewController Crash ---
+    // --- 1. GET ALL USERS (Fixes List Crash) ---
     @GetMapping
     public List<UserDto> getAllUsers() {
         return userService.getAllUsers();
     }
 
-    // --- Basic User Management ---
+    // --- 2. ADD USER (Fixes "Add User" Error) ---
+    // This handles the POST /api/users request from your Admin Client
+    @PostMapping
+    public ResponseEntity<String> createUser(@RequestBody UserDto userDto) {
+        userService.registerUser(userDto);
+        return ResponseEntity.ok("User created successfully");
+    }
+
+    // --- 3. EXISTING REGISTER (Keep for Sign Up Page) ---
+    @PostMapping("/register")
+    public ResponseEntity<String> register(@RequestBody UserDto userDto) {
+        userService.registerUser(userDto);
+        return ResponseEntity.ok("User registered successfully");
+    }
+
+    // --- 4. OTHER ENDPOINTS (Keep exactly as they were) ---
 
     @GetMapping("/check-email")
     public ResponseEntity<?> checkEmail(@RequestParam String email) {
         boolean available = userService.isEmailAvailable(email);
         return available ? ResponseEntity.ok().build() : ResponseEntity.status(409).build();
-    }
-
-    @PostMapping("/register")
-    public ResponseEntity<String> register(@RequestBody UserDto userDto) {
-        userService.registerUser(userDto);
-        return ResponseEntity.ok("User registered successfully");
     }
 
     @PostMapping("/login")
@@ -53,7 +62,6 @@ public class UserController {
 
             userService.logLogin(user, ipAddress);
 
-            // Manual DTO construction for Login to ensure it's clean
             UserDto dto = new UserDto();
             dto.setId(user.getId());
             dto.setUsername(user.getUsername());
@@ -63,7 +71,7 @@ public class UserController {
             dto.setGender(user.getGender() != null ? user.getGender().name() : "OTHER");
             dto.setDob(user.getDob() != null ? user.getDob().toLocalDate() : null);
             dto.setRole(user.getUsername().equalsIgnoreCase("admin") ? "ADMIN" : "USER");
-            dto.setStatus(user.getStatus() != null ? user.getStatus().name() : "ACTIVE");
+            dto.setStatus(user.getStatus() != null ? user.getStatus().name() : "ACTIVE"); // Ensure Status is sent
 
             return ResponseEntity.ok(dto);
         }
@@ -74,7 +82,6 @@ public class UserController {
     public ResponseEntity<UserDto> getUser(@PathVariable Integer id) {
         User user = userService.getUserById(id);
         if (user != null) {
-            // Manual DTO map (or reuse helper if we moved it to a util class)
             UserDto dto = new UserDto();
             dto.setId(user.getId());
             dto.setUsername(user.getUsername());
@@ -90,7 +97,6 @@ public class UserController {
 
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable Integer id, @RequestBody UserDto userDto) {
-        // Keeping return type User for now as requested by previous code structure
         return ResponseEntity.ok(userService.updateUser(id, userDto));
     }
 
@@ -106,8 +112,6 @@ public class UserController {
         return ResponseEntity.ok().build();
     }
 
-    // --- Login History (Fixed Return Type) ---
-
     @GetMapping("/login-history")
     public List<LoginHistoryDto> getLoginHistory() {
         return userService.getSystemLoginHistory();
@@ -117,8 +121,6 @@ public class UserController {
     public List<LoginHistoryDto> getUserLoginHistory(@PathVariable String username) {
         return userService.getUserLoginHistory(username);
     }
-
-    // --- Password Management ---
 
     @PutMapping("/{id}/password")
     public ResponseEntity<String> changePassword(@PathVariable Integer id, @RequestBody ChangePasswordRequest request) {
@@ -134,8 +136,6 @@ public class UserController {
     public ResponseEntity<String> forgotPassword(@RequestBody ChangePasswordRequest request) {
         return ResponseEntity.ok("Request sent to admin");
     }
-
-    // --- Search ---
 
     @GetMapping("/search")
     public List<UserDto> searchUsers(@RequestParam String q, @RequestParam Integer userId) {

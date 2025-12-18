@@ -21,8 +21,8 @@ public class Conversation {
     @Column(name = "is_encrypted")
     private Boolean isEncrypted = false;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt = LocalDateTime.now(); // Initialize Default
 
     // --- getters & setters ---
 
