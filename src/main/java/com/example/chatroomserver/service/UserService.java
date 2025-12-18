@@ -106,7 +106,7 @@ public class UserService {
     public void logLogin(User user, String ipAddress) {
 //        User user = userRepository.findByUsername(username);
         if (user != null) {
-            LoginHistory history = new LoginHistory(user.getUsername(), user.getFullName(), ipAddress);
+            LoginHistory history = new LoginHistory(user, ipAddress);
             loginHistoryRepository.save(history);
         }
     }
@@ -129,7 +129,9 @@ public class UserService {
     }
 
     public List<LoginHistory> getUserLoginHistory(String username) {
-        return loginHistoryRepository.findByUsernameOrderByLoginTimeDesc(username);
+        User user = userRepository.findByUsername(username);
+        if (user == null) throw new RuntimeException("User not found");
+        return loginHistoryRepository.findByUserOrderByLoginTimeDesc(user);
     }
 
     public User getUserById(Integer id) {
