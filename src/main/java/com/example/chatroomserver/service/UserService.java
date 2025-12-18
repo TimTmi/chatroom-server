@@ -1,16 +1,17 @@
 package com.example.chatroomserver.service;
 
+import com.example.chatroomserver.dto.LoginHistoryDto;
 import com.example.chatroomserver.dto.UserDto;
+import com.example.chatroomserver.entity.LoginHistory;
 import com.example.chatroomserver.entity.User;
+import com.example.chatroomserver.repository.LoginHistoryRepository;
 import com.example.chatroomserver.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import com.example.chatroomserver.entity.LoginHistory;
-import com.example.chatroomserver.repository.LoginHistoryRepository;
-
-
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService {
@@ -20,6 +21,37 @@ public class UserService {
 
     @Autowired
     private LoginHistoryRepository loginHistoryRepository;
+
+    // --- NEW: Get All Users (For Admin Panel) ---
+    public List<UserDto> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(this::convertUserToDto)
+                .collect(Collectors.toList());
+    }
+
+    // --- Helper to convert Entity -> DTO ---
+    private UserDto convertUserToDto(User user) {
+        UserDto dto = new UserDto();
+        dto.setId(user.getId());
+        dto.setUsername(user.getUsername());
+        dto.setFullName(user.getFullName());
+        dto.setEmail(user.getEmail());
+        dto.setAddress(user.getAddress());
+
+        // Handle Enums safely
+        dto.setGender(user.getGender() != null ? user.getGender().name() : "OTHER");
+        dto.setStatus(user.getStatus() != null ? user.getStatus().name() : "ACTIVE");
+
+        // Determine Role (Simple logic: if username is 'admin', they are ADMIN)
+        dto.setRole(user.getUsername().equalsIgnoreCase("admin") ? "ADMIN" : "USER");
+
+        // Handle Date (Prevent Array serialization issue)
+        dto.setDob(user.getDob() != null ? user.getDob().toLocalDate() : null);
+
+        return dto;
+    }
+
+    // --- User Management ---
 
     public boolean isEmailAvailable(String email) {
         return !userRepository.existsByEmail(email);
@@ -33,7 +65,6 @@ public class UserService {
         user.setEmail(dto.getEmail());
         user.setAddress(dto.getAddress());
 
-        // Safe Gender Set
         if (dto.getGender() != null) {
             try {
                 user.setGender(User.Gender.valueOf(dto.getGender().toUpperCase()));
@@ -44,11 +75,8 @@ public class UserService {
             user.setGender(User.Gender.OTHER);
         }
 
-        // Safe DOB Set
         if (dto.getDob() != null) {
             user.setDob(dto.getDob().atStartOfDay());
-        } else {
-            user.setDob(null);
         }
 
         user.setStatus(User.Status.ACTIVE);
@@ -103,58 +131,64 @@ public class UserService {
         }
     }
 
+    // --- Login History (Fixed to use DTOs) ---
+
     public void logLogin(User user, String ipAddress) {
-//        User user = userRepository.findByUsername(username);
         if (user != null) {
             LoginHistory history = new LoginHistory(user, ipAddress);
             loginHistoryRepository.save(history);
         }
     }
 
-    public boolean changePassword(Integer userId, String oldPassword, String newPassword) {
-//        User user = userRepository.findById(userId)
-//                .orElseThrow(() -> new RuntimeException("User not found"));
-//
-//        if (!user.getPassword().equals(oldPassword)) {
-//            return false;
-//        }
-//
-//        user.setPassword(newPassword);
-//        userRepository.save(user);
-        return true;
+    @Transactional(readOnly = true)
+    public List<LoginHistoryDto> getSystemLoginHistory() {
+        return loginHistoryRepository.findAllByOrderByLoginTimeDesc().stream()
+                .map(this::convertHistoryToDto)
+                .collect(Collectors.toList());
     }
 
-    public List<LoginHistory> getSystemLoginHistory() {
-        return loginHistoryRepository.findAllByOrderByLoginTimeDesc();
-    }
-
-    public List<LoginHistory> getUserLoginHistory(String username) {
+    @Transactional(readOnly = true)
+    public List<LoginHistoryDto> getUserLoginHistory(String username) {
         User user = userRepository.findByUsername(username);
         if (user == null) throw new RuntimeException("User not found");
-        return loginHistoryRepository.findByUserOrderByLoginTimeDesc(user);
+        return loginHistoryRepository.findByUserOrderByLoginTimeDesc(user).stream()
+                .map(this::convertHistoryToDto)
+                .collect(Collectors.toList());
+    }
+
+    private LoginHistoryDto convertHistoryToDto(LoginHistory h) {
+        return new LoginHistoryDto(
+                h.getLoginTime().toString(), // Converts to String "2023-..." safely
+                h.getUser().getUsername(),
+                h.getUser().getFullName(),
+                h.getIpAddress()
+        );
+    }
+
+    // --- Password & Search ---
+
+    public boolean changePassword(Integer userId, String oldPassword, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!user.getPassword().equals(oldPassword)) {
+            return false;
+        }
+
+        user.setPassword(newPassword);
+        userRepository.save(user);
+        return true;
     }
 
     public User getUserById(Integer id) {
         return userRepository.findById(id).orElse(null);
     }
 
-    public User saveUser(User user) {
-        return userRepository.save(user);
-    }
-
     public List<UserDto> searchUsers(String query, Integer currentUserId) {
-        // Find users matching username OR fullname
         List<User> users = userRepository.findByUsernameContainingOrFullNameContaining(query, query);
-
         return users.stream()
-                .filter(u -> !u.getId().equals(currentUserId)) // Exclude self
-                .map(u -> {
-                    UserDto dto = new UserDto();
-                    dto.setId(u.getId());
-                    dto.setUsername(u.getUsername());
-                    dto.setFullName(u.getFullName());
-                    return dto;
-                })
-                .collect(java.util.stream.Collectors.toList());
+                .filter(u -> !u.getId().equals(currentUserId))
+                .map(this::convertUserToDto) // Reuse helper
+                .collect(Collectors.toList());
     }
 }

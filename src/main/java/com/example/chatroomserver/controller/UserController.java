@@ -1,18 +1,15 @@
 package com.example.chatroomserver.controller;
 
+import com.example.chatroomserver.dto.ChangePasswordRequest;
+import com.example.chatroomserver.dto.LoginHistoryDto;
 import com.example.chatroomserver.dto.UserDto;
 import com.example.chatroomserver.entity.User;
 import com.example.chatroomserver.repository.UserRepository;
 import com.example.chatroomserver.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.example.chatroomserver.entity.LoginHistory;
-import com.example.chatroomserver.dto.ChangePasswordRequest;
-
-import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/users")
@@ -24,6 +21,12 @@ public class UserController {
     public UserController(UserService userService, UserRepository userRepo) {
         this.userService = userService;
         this.userRepo = userRepo;
+    }
+
+    // --- NEW: Fixes AdminUserViewController Crash ---
+    @GetMapping
+    public List<UserDto> getAllUsers() {
+        return userService.getAllUsers();
     }
 
     // --- Basic User Management ---
@@ -41,139 +44,98 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody UserDto userDto, HttpServletRequest request) {
-        User user = userService.validate(userDto.getUsername(), userDto.getPassword());
+    public ResponseEntity<?> login(@RequestBody UserDto loginRequest, @RequestHeader(value = "X-Forwarded-For", defaultValue = "unknown") String ipAddress) {
+        User user = userService.validate(loginRequest.getUsername(), loginRequest.getPassword());
         if (user != null) {
-            // 1. Log the IP
-            String ip = request.getHeader("X-Forwarded-For");
-            if (ip == null || ip.isEmpty()) {
-                ip = request.getRemoteAddr();
+            if (user.getStatus() == User.Status.LOCKED) {
+                return ResponseEntity.status(403).body("Account is locked");
             }
-            userService.logLogin(user, ip);
 
-            // 2. FETCH AND RETURN THE ACTUAL USER (Crucial for Client)
-//            User user = userRepo.findByUsername(userDto.getUsername());
-            return ResponseEntity.ok(user);
-        } else {
-            return ResponseEntity.status(401).body("Invalid credentials");
+            userService.logLogin(user, ipAddress);
+
+            // Manual DTO construction for Login to ensure it's clean
+            UserDto dto = new UserDto();
+            dto.setId(user.getId());
+            dto.setUsername(user.getUsername());
+            dto.setFullName(user.getFullName());
+            dto.setEmail(user.getEmail());
+            dto.setAddress(user.getAddress());
+            dto.setGender(user.getGender() != null ? user.getGender().name() : "OTHER");
+            dto.setDob(user.getDob() != null ? user.getDob().toLocalDate() : null);
+            dto.setRole(user.getUsername().equalsIgnoreCase("admin") ? "ADMIN" : "USER");
+            dto.setStatus(user.getStatus() != null ? user.getStatus().name() : "ACTIVE");
+
+            return ResponseEntity.ok(dto);
         }
+        return ResponseEntity.status(401).body("Invalid credentials");
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<UserDto> getUser(@PathVariable Integer id) {
+        User user = userService.getUserById(id);
+        if (user != null) {
+            // Manual DTO map (or reuse helper if we moved it to a util class)
+            UserDto dto = new UserDto();
+            dto.setId(user.getId());
+            dto.setUsername(user.getUsername());
+            dto.setFullName(user.getFullName());
+            dto.setEmail(user.getEmail());
+            dto.setAddress(user.getAddress());
+            dto.setGender(user.getGender() != null ? user.getGender().name() : "OTHER");
+            dto.setDob(user.getDob() != null ? user.getDob().toLocalDate() : null);
+            return ResponseEntity.ok(dto);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<User> updateUser(@PathVariable Integer id, @RequestBody UserDto userDto) {
+        // Keeping return type User for now as requested by previous code structure
+        return ResponseEntity.ok(userService.updateUser(id, userDto));
+    }
+
+    @PostMapping("/{id}/lock")
+    public ResponseEntity<Void> lockUser(@PathVariable Integer id) {
+        userService.lockUser(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Integer id) {
+        userService.deleteUser(id);
+        return ResponseEntity.ok().build();
+    }
+
+    // --- Login History (Fixed Return Type) ---
+
     @GetMapping("/login-history")
-    public List<LoginHistory> getLoginHistory() {
+    public List<LoginHistoryDto> getLoginHistory() {
         return userService.getSystemLoginHistory();
     }
 
     @GetMapping("/{username}/login-history")
-    public List<LoginHistory> getUserLoginHistory(@PathVariable String username) {
+    public List<LoginHistoryDto> getUserLoginHistory(@PathVariable String username) {
         return userService.getUserLoginHistory(username);
     }
 
-    @GetMapping
-    public List<User> getAllUsers() {
-        return userRepo.findAll();
-    }
-
-    @GetMapping("/{id}")
-    public Optional<User> getUser(@PathVariable Integer id) {
-        return userRepo.findById(id);
-    }
-
-    // --- Admin & Update Features ---
-
-    @PostMapping
-    public ResponseEntity<String> createUser(@RequestBody UserDto userDto) {
-        userService.registerUser(userDto);
-        return ResponseEntity.ok("User created successfully");
-    }
-
-    // THIS IS THE CORRECT, ROBUST UPDATE METHOD (Duplicates Removed)
-    @PutMapping("/{id}")
-    public ResponseEntity<?> updateUser(@PathVariable Integer id, @RequestBody UserDto updatedData) {
-        User existingUser = userService.getUserById(id);
-        if (existingUser == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        // Update fields safely (checking for nulls)
-        if (updatedData.getFullName() != null) existingUser.setFullName(updatedData.getFullName());
-        if (updatedData.getEmail() != null) existingUser.setEmail(updatedData.getEmail());
-        if (updatedData.getAddress() != null) existingUser.setAddress(updatedData.getAddress());
-
-        // Gender Update
-        if (updatedData.getGender() != null) {
-            try {
-                existingUser.setGender(User.Gender.valueOf(updatedData.getGender().toUpperCase()));
-            } catch (IllegalArgumentException e) {
-                return ResponseEntity.badRequest().body("Invalid gender value");
-            }
-        }
-
-        // Date Update
-        if (updatedData.getDob() != null) {
-            existingUser.setDob(updatedData.getDob().atStartOfDay());
-        }
-
-        userService.saveUser(existingUser);
-        return ResponseEntity.ok("User updated successfully");
-    }
-
-    @PutMapping("/{id}/lock")
-    public ResponseEntity<String> lockUser(@PathVariable Integer id) {
-        try {
-            userService.lockUser(id);
-            return ResponseEntity.ok("User status updated");
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteUser(@PathVariable Integer id) {
-        try {
-            userService.deleteUser(id);
-            return ResponseEntity.ok("User deleted successfully");
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    // --- Password Features ---
-
-    @PostMapping("/password-requests/{id}/approve")
-    public ResponseEntity<String> approveReset(@PathVariable Integer id) {
-        try {
-//            userService.approvePasswordReset(id);
-            return ResponseEntity.ok("Password reset approved");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
-        }
-    }
+    // --- Password Management ---
 
     @PutMapping("/{id}/password")
     public ResponseEntity<String> changePassword(@PathVariable Integer id, @RequestBody ChangePasswordRequest request) {
-//        boolean success = userService.changePassword(id, request.getOldPassword(), request.getNewPassword());
-//        if (success) {
+        boolean success = userService.changePassword(id, request.getOldPassword(), request.getNewPassword());
+        if (success) {
             return ResponseEntity.ok("Password changed successfully");
-//        } else {
-//            return ResponseEntity.status(401).body("Incorrect old password");
-//        }
+        } else {
+            return ResponseEntity.status(401).body("Incorrect old password");
+        }
     }
 
     @PostMapping("/forgot-password")
     public ResponseEntity<String> forgotPassword(@RequestBody ChangePasswordRequest request) {
-//        boolean success = userService.requestPasswordReset(
-//                request.getUsername(),
-//                request.getOldPassword(),
-//                request.getNewPassword()
-//        );
-//
-//        if (success) {
-            return ResponseEntity.ok("Request sent to admin");
-//        } else {
-//            return ResponseEntity.badRequest().body("Username and Email do not match");
-//        }
+        return ResponseEntity.ok("Request sent to admin");
     }
+
+    // --- Search ---
 
     @GetMapping("/search")
     public List<UserDto> searchUsers(@RequestParam String q, @RequestParam Integer userId) {
