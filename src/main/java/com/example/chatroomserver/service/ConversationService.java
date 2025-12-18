@@ -120,6 +120,11 @@ public class ConversationService {
             lastMessageDto.setId(last.getId());
             lastMessageDto.setConversationId(last.getConversation().getId());
             lastMessageDto.setSenderId(last.getSender().getId());
+            lastMessageDto.setSenderName(
+                    last.getSender().getFullName() != null
+                            ? last.getSender().getFullName()
+                            : last.getSender().getUsername()
+            );
             lastMessageDto.setContent(last.getContent());
             lastMessageDto.setSentAt(last.getSentAt());
             dto.setLastMessage(lastMessageDto);

@@ -7,6 +7,7 @@ public class MessageDto {
     private Integer id;
     private Integer conversationId;
     private Integer senderId;
+    private String senderName;
     private String content;
     private LocalDateTime sentAt;
 
@@ -19,6 +20,9 @@ public class MessageDto {
 
     public Integer getSenderId() { return senderId; }
     public void setSenderId(Integer senderId) { this.senderId = senderId; }
+
+    public String getSenderName() { return senderName; }
+    public void setSenderName(String s) { this.senderName = s; }
 
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
