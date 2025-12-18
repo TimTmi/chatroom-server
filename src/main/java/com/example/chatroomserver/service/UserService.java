@@ -13,11 +13,20 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.beans.factory.annotation.Autowired;
+import java.security.SecureRandom;
+import java.util.Base64;
+
 @Service
 public class UserService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private JavaMailSender mailSender;
 
     @Autowired
     private LoginHistoryRepository loginHistoryRepository;
@@ -190,5 +199,38 @@ public class UserService {
                 .filter(u -> !u.getId().equals(currentUserId))
                 .map(this::convertUserToDto) // Reuse helper
                 .collect(Collectors.toList());
+    }
+
+    public boolean resetPasswordAndSendEmail(String email) {
+        User user = userRepository.findByEmail(email);
+        if (user == null) return false;
+
+        // 1. Generate random password
+        String newPassword = generateRandomPassword(10);
+
+        // 2. Save new password (plain for now, ideally hash it)
+        user.setPassword(newPassword);
+        userRepository.save(user);
+
+        // 3. Send email
+        sendEmail(user.getEmail(), newPassword);
+
+        return true;
+    }
+
+    private String generateRandomPassword(int length) {
+        SecureRandom random = new SecureRandom();
+        byte[] bytes = new byte[length];
+        random.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes).substring(0, length);
+    }
+
+    private void sendEmail(String to, String newPassword) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(to);
+        message.setSubject("Your New Chatroom Password");
+        message.setText("Hello,\n\nYour password has been reset. Your new password is:\n\n" +
+                newPassword + "\n\nPlease change it after logging in.");
+        mailSender.send(message);
     }
 }
