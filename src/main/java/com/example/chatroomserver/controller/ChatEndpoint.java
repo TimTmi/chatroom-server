@@ -3,6 +3,7 @@ package com.example.chatroomserver.controller;
 import com.example.chatroomserver.service.OnlineUsersService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.websocket.*;
 import jakarta.websocket.server.ServerEndpoint;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +17,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ChatEndpoint {
 
     private static OnlineUsersService onlineUsersService;
-
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
@@ -24,6 +24,7 @@ public class ChatEndpoint {
         ChatEndpoint.onlineUsersService = service;
     }
 
+    // Maps sessions to usernames (optional, for debugging/logging)
     private final Map<Session, String> sessionUserMap = new ConcurrentHashMap<>();
 
     @OnOpen
@@ -35,83 +36,55 @@ public class ChatEndpoint {
     public void onMessage(String message, Session session) {
         try {
             JsonNode json = objectMapper.readTree(message);
-            if (json == null || json.isNull()) {
-                System.out.println("Received empty or null JSON: " + message);
+            if (!json.has("type")) {
+                System.out.println("Unknown message: " + message);
                 return;
             }
 
-            JsonNode typeNode = json.get("type");
-            if (typeNode == null || typeNode.isNull()) {
-                System.out.println("Received JSON without 'type': " + message);
-                return;
-            }
-
-            String type = typeNode.asText();
+            String type = json.get("type").asText();
+            String username = json.has("username") ? json.get("username").asText() : null;
 
             switch (type) {
-                case "login" -> {
-                    JsonNode usernameNode = json.get("username");
-                    JsonNode passwordNode = json.get("password");
-
-                    if (usernameNode == null || passwordNode == null) {
-                        send(session, "login_failed_missing_fields");
-                        return;
-                    }
-
-                    String username = usernameNode.asText();
-                    String password = passwordNode.asText();
-
-                    if (authenticate(username, password)) {
-                        sessionUserMap.put(session, username);
-                        onlineUsersService.setOnline(username);
-                        send(session, "login_success");
-                        System.out.println(username + " logged in");
-                    } else {
-                        send(session, "login_failed");
-                    }
-                }
-
-                case "heartbeat" -> {
-                    String userId = sessionUserMap.get(session);
-                    if (userId != null) {
-                        onlineUsersService.setOnline(userId);
-                        System.out.println("Heartbeat received from " + userId + " at " + System.currentTimeMillis());
-                    } else {
-                        System.out.println("Heartbeat from unknown session: " + session.getId());
-                    }
-                }
-
-                case "chat" -> {
-                    String userId = sessionUserMap.get(session);
-                    if (userId != null) {
-                        JsonNode textNode = json.get("message");
-                        if (textNode != null && !textNode.isNull()) {
-                            String text = textNode.asText();
-                            System.out.println(userId + ": " + text);
-                            onlineUsersService.setOnline(userId);
-                        } else {
-                            System.out.println("Chat message missing 'message' field from " + userId);
-                        }
-                    } else {
-                        System.out.println("Chat from unknown session: " + session.getId());
-                    }
-                }
-
+                case "heartbeat" -> handleHeartbeat(session, username);
+                case "chat" -> handleChat(session, username, json);
                 default -> System.out.println("Unknown message type: " + type);
             }
 
         } catch (Exception e) {
-            System.out.println("Failed to parse message: " + message);
             e.printStackTrace();
+        }
+    }
+
+    private void handleHeartbeat(Session session, String username) {
+        if (username != null) {
+            onlineUsersService.setOnline(username);
+            sessionUserMap.put(session, username); // track for optional debugging
+            System.out.println("Heartbeat received from " + username + " at " + System.currentTimeMillis());
+            send(session, "heartbeat_ack");
+        } else {
+            System.out.println("Heartbeat from unknown session: " + session.getId());
+        }
+    }
+
+    private void handleChat(Session session, String username, JsonNode json) {
+        if (username == null) {
+            System.out.println("Chat from unknown session: " + session.getId());
+            return;
+        }
+
+        String text = json.has("message") ? json.get("message").asText() : null;
+        if (text != null) {
+            System.out.println(username + ": " + text);
+            onlineUsersService.setOnline(username); // optional, keep user online
         }
     }
 
     @OnClose
     public void onClose(Session session) {
-        String userId = sessionUserMap.remove(session);
-        if (userId != null) {
-            onlineUsersService.setOffline(userId);
-            System.out.println(userId + " disconnected");
+        String username = sessionUserMap.remove(session);
+        if (username != null) {
+            onlineUsersService.setOffline(username);
+            System.out.println(username + " disconnected");
         }
     }
 
@@ -120,14 +93,11 @@ public class ChatEndpoint {
         throwable.printStackTrace();
     }
 
-    private boolean authenticate(String username, String password) {
-        // Replace this with a real DB lookup
-        return "user".equals(username) && "pass".equals(password);
-    }
-
-    private void send(Session session, String message) {
+    private void send(Session session, String type) {
         try {
-            session.getBasicRemote().sendText(message);
+            ObjectNode json = objectMapper.createObjectNode();
+            json.put("type", type);
+            session.getBasicRemote().sendText(json.toString());
         } catch (Exception e) {
             e.printStackTrace();
         }
