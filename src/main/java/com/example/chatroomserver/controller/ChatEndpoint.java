@@ -1,105 +1,86 @@
 package com.example.chatroomserver.controller;
 
-import com.example.chatroomserver.service.OnlineUsersService;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.example.chatroomserver.dto.MessageDto;
+import com.example.chatroomserver.service.MessageService;
+import com.example.chatroomserver.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.websocket.*;
+import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
-@ServerEndpoint("/chat")
+@ServerEndpoint("/chat/{conversationId}")
 public class ChatEndpoint {
 
-    private static OnlineUsersService onlineUsersService;
+    private static MessageService messageServiceStatic;
+    private static UserService userServiceStatic;
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
+    // Track all sessions per conversation
+    private static final Map<Integer, Set<Session>> sessionsPerConversation = new ConcurrentHashMap<>();
+
+    private Session session;
+    private Integer conversationId;
+    private Integer userId;
+
+    // Spring injection hack for @ServerEndpoint
     @Autowired
-    public void setOnlineUsersService(OnlineUsersService service) {
-        ChatEndpoint.onlineUsersService = service;
+    public void setServices(MessageService messageService, UserService userService) {
+        ChatEndpoint.messageServiceStatic = messageService;
+        ChatEndpoint.userServiceStatic = userService;
     }
 
-    // Maps sessions to usernames (optional, for debugging/logging)
-    private final Map<Session, String> sessionUserMap = new ConcurrentHashMap<>();
-
     @OnOpen
-    public void onOpen(Session session) {
-        System.out.println("New connection: " + session.getId());
+    public void onOpen(Session session, @PathParam("conversationId") Integer conversationId) {
+        this.session = session;
+        this.conversationId = conversationId;
+        sessionsPerConversation
+                .computeIfAbsent(conversationId, k -> ConcurrentHashMap.newKeySet())
+                .add(session);
+
+        System.out.println("New WebSocket session " + session.getId() + " for conversation " + conversationId);
     }
 
     @OnMessage
-    public void onMessage(String message, Session session) {
+    public void onMessage(String messageJson) {
         try {
-            JsonNode json = objectMapper.readTree(message);
-            if (!json.has("type")) {
-                System.out.println("Unknown message: " + message);
-                return;
-            }
+            var node = objectMapper.readTree(messageJson);
 
-            String type = json.get("type").asText();
-            String username = json.has("username") ? json.get("username").asText() : null;
+            // Expect { "userId":123, "message":"Hello!" }
+            int senderId = node.get("userId").asInt();
+            String text = node.get("message").asText();
 
-            switch (type) {
-                case "heartbeat" -> handleHeartbeat(session, username);
-                case "chat" -> handleChat(session, username, json);
-                default -> System.out.println("Unknown message type: " + type);
-            }
+            // Persist to DB
+            MessageDto dto = messageServiceStatic.sendMessage(conversationId, senderId, text);
+
+            // Broadcast to all sessions of this conversation
+            String broadcastJson = objectMapper.writeValueAsString(dto);
+            sessionsPerConversation.getOrDefault(conversationId, Set.of()).forEach(s -> {
+                try { s.getBasicRemote().sendText(broadcastJson); }
+                catch (Exception e) { e.printStackTrace(); }
+            });
 
         } catch (Exception e) {
             e.printStackTrace();
-        }
-    }
-
-    private void handleHeartbeat(Session session, String username) {
-        if (username != null) {
-            onlineUsersService.setOnline(username);
-            sessionUserMap.put(session, username); // track for optional debugging
-            System.out.println("Heartbeat received from " + username + " at " + System.currentTimeMillis());
-            send(session, "heartbeat_ack");
-        } else {
-            System.out.println("Heartbeat from unknown session: " + session.getId());
-        }
-    }
-
-    private void handleChat(Session session, String username, JsonNode json) {
-        if (username == null) {
-            System.out.println("Chat from unknown session: " + session.getId());
-            return;
-        }
-
-        String text = json.has("message") ? json.get("message").asText() : null;
-        if (text != null) {
-            System.out.println(username + ": " + text);
-            onlineUsersService.setOnline(username); // optional, keep user online
         }
     }
 
     @OnClose
-    public void onClose(Session session) {
-        String username = sessionUserMap.remove(session);
-        if (username != null) {
-            onlineUsersService.setOffline(username);
-            System.out.println(username + " disconnected");
+    public void onClose() {
+        if (conversationId != null && session != null) {
+            sessionsPerConversation.getOrDefault(conversationId, Set.of()).remove(session);
         }
+        System.out.println("WebSocket session closed: " + session.getId());
     }
 
     @OnError
-    public void onError(Session session, Throwable throwable) {
+    public void onError(Throwable throwable) {
         throwable.printStackTrace();
-    }
-
-    private void send(Session session, String type) {
-        try {
-            ObjectNode json = objectMapper.createObjectNode();
-            json.put("type", type);
-            session.getBasicRemote().sendText(json.toString());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 }
