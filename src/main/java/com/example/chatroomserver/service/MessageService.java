@@ -60,8 +60,14 @@ public class MessageService {
         MessageDto dto = new MessageDto();
         dto.setId(msg.getId());
         dto.setSenderId(msg.getSender().getId());
+        dto.setSenderName(
+                msg.getSender().getFullName() != null
+                        ? msg.getSender().getFullName()
+                        : msg.getSender().getUsername()
+        );
         dto.setContent(msg.getContent());
         dto.setSentAt(msg.getSentAt());
         return dto;
     }
+
 }
