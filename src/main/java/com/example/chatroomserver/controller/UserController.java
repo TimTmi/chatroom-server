@@ -1,7 +1,6 @@
 package com.example.chatroomserver.controller;
 
 import com.example.chatroomserver.dto.UserDto;
-import com.example.chatroomserver.entity.PasswordRequest;
 import com.example.chatroomserver.entity.User;
 import com.example.chatroomserver.repository.UserRepository;
 import com.example.chatroomserver.service.UserService;
@@ -43,17 +42,17 @@ public class UserController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody UserDto userDto, HttpServletRequest request) {
-        boolean success = userService.validate(userDto.getUsername(), userDto.getPassword());
-        if (success) {
+        User user = userService.validate(userDto.getUsername(), userDto.getPassword());
+        if (user != null) {
             // 1. Log the IP
             String ip = request.getHeader("X-Forwarded-For");
             if (ip == null || ip.isEmpty()) {
                 ip = request.getRemoteAddr();
             }
-            userService.logLogin(userDto.getUsername(), ip);
+            userService.logLogin(user, ip);
 
             // 2. FETCH AND RETURN THE ACTUAL USER (Crucial for Client)
-            User user = userRepo.findByUsername(userDto.getUsername());
+//            User user = userRepo.findByUsername(userDto.getUsername());
             return ResponseEntity.ok(user);
         } else {
             return ResponseEntity.status(401).body("Invalid credentials");
@@ -141,15 +140,10 @@ public class UserController {
 
     // --- Password Features ---
 
-    @GetMapping("/password-requests")
-    public List<PasswordRequest> getPasswordRequests() {
-        return userService.getAllPasswordRequests();
-    }
-
     @PostMapping("/password-requests/{id}/approve")
     public ResponseEntity<String> approveReset(@PathVariable Integer id) {
         try {
-            userService.approvePasswordReset(id);
+//            userService.approvePasswordReset(id);
             return ResponseEntity.ok("Password reset approved");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
@@ -158,27 +152,27 @@ public class UserController {
 
     @PutMapping("/{id}/password")
     public ResponseEntity<String> changePassword(@PathVariable Integer id, @RequestBody ChangePasswordRequest request) {
-        boolean success = userService.changePassword(id, request.getOldPassword(), request.getNewPassword());
-        if (success) {
+//        boolean success = userService.changePassword(id, request.getOldPassword(), request.getNewPassword());
+//        if (success) {
             return ResponseEntity.ok("Password changed successfully");
-        } else {
-            return ResponseEntity.status(401).body("Incorrect old password");
-        }
+//        } else {
+//            return ResponseEntity.status(401).body("Incorrect old password");
+//        }
     }
 
     @PostMapping("/forgot-password")
     public ResponseEntity<String> forgotPassword(@RequestBody ChangePasswordRequest request) {
-        boolean success = userService.requestPasswordReset(
-                request.getUsername(),
-                request.getOldPassword(), 
-                request.getNewPassword()
-        );
-
-        if (success) {
+//        boolean success = userService.requestPasswordReset(
+//                request.getUsername(),
+//                request.getOldPassword(),
+//                request.getNewPassword()
+//        );
+//
+//        if (success) {
             return ResponseEntity.ok("Request sent to admin");
-        } else {
-            return ResponseEntity.badRequest().body("Username and Email do not match");
-        }
+//        } else {
+//            return ResponseEntity.badRequest().body("Username and Email do not match");
+//        }
     }
 
     @GetMapping("/search")

@@ -2,6 +2,8 @@ package com.example.chatroomserver.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "users")
@@ -25,12 +27,14 @@ public class User {
     private LocalDateTime dob;
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 10)
     private Gender gender = Gender.OTHER;
 
     @Column(unique = true, nullable = false)
     private String email;
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 10)
     private Status status = Status.ACTIVE;
 
     private LocalDateTime createdAt = LocalDateTime.now();
