@@ -11,6 +11,8 @@ public interface ConversationMemberRepository
     boolean existsByConversationIdAndUserId(Integer conversationId, Integer userId);
 
     List<ConversationMember> findByUserId(Integer userId);
+    List<ConversationMember> findByConversationId(Integer conversationId);
+
 }
 
 

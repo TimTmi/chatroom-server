@@ -1,5 +1,6 @@
 package com.example.chatroomserver.controller;
 
+import com.example.chatroomserver.dto.ConversationDto;
 import com.example.chatroomserver.entity.Conversation;
 import com.example.chatroomserver.service.ConversationService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,9 +42,8 @@ public class ConversationController {
      * List conversations for a user
      */
     @GetMapping
-    public List<Conversation> listUserConversations(
-            @RequestParam Integer userId
-    ) {
-        return conversationService.getUserConversations(userId);
+    public List<ConversationDto> listUserConversations(@RequestParam Integer userId) {
+        return conversationService.getUserConversationsDto(userId);
     }
+
 }
