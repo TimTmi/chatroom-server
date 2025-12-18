@@ -1,6 +1,7 @@
 package com.example.chatroomserver.controller;
 
 import com.example.chatroomserver.dto.ChangePasswordRequest;
+import com.example.chatroomserver.dto.ForgotPasswordRequest;
 import com.example.chatroomserver.dto.LoginHistoryDto;
 import com.example.chatroomserver.dto.UserDto;
 import com.example.chatroomserver.entity.User;
@@ -133,9 +134,21 @@ public class UserController {
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<String> forgotPassword(@RequestBody ChangePasswordRequest request) {
-        return ResponseEntity.ok("Request sent to admin");
+    public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        System.out.println("!");
+        try {
+            boolean sent = userService.resetPasswordAndSendEmail(request.getEmail());
+            if (sent) {
+                return ResponseEntity.ok("A new password has been sent to your email.");
+            } else {
+                return ResponseEntity.status(404).body("Email not found");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Internal server error");
+        }
     }
+
 
     @GetMapping("/search")
     public List<UserDto> searchUsers(@RequestParam String q, @RequestParam Integer userId) {
