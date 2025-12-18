@@ -1,12 +1,12 @@
 package com.example.chatroomserver.controller;
 
 import com.example.chatroomserver.dto.ConversationDto;
+import com.example.chatroomserver.dto.GroupChatDto;
 import com.example.chatroomserver.entity.Conversation;
 import com.example.chatroomserver.service.ConversationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -16,9 +16,22 @@ public class ConversationController {
     @Autowired
     private ConversationService conversationService;
 
-    /**
-     * Create a DM
-     */
+    // --- 1. ADMIN ENDPOINT (Restored) ---
+    @GetMapping("/groups/all")
+    public List<GroupChatDto> getAllGroups() {
+        return conversationService.getAllGroups();
+    }
+
+    // --- 2. CREATE GROUP (Fixed with Group Name) ---
+    @PostMapping("/group")
+    public Conversation createGroup(
+            @RequestParam Integer creatorId,
+            @RequestParam String groupName,
+            @RequestParam List<Integer> memberIds
+    ) {
+        return conversationService.createGroupConversation(creatorId, groupName, memberIds);
+    }
+
     @PostMapping("/dm")
     public Conversation createDM(
             @RequestParam Integer userAId,
@@ -27,23 +40,8 @@ public class ConversationController {
         return conversationService.createDirectConversation(userAId, userBId);
     }
 
-    /**
-     * Create a group conversation
-     */
-    @PostMapping("/group")
-    public Conversation createGroup(
-            @RequestParam Integer creatorId,
-            @RequestParam List<Integer> memberIds
-    ) {
-        return conversationService.createGroupConversation(creatorId, memberIds);
-    }
-
-    /**
-     * List conversations for a user
-     */
     @GetMapping
     public List<ConversationDto> listUserConversations(@RequestParam Integer userId) {
         return conversationService.getUserConversationsDto(userId);
     }
-
 }
