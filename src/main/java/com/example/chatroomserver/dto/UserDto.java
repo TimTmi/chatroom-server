@@ -14,7 +14,7 @@ public class UserDto {
 
     // --- FIELDS FOR ADMIN ---
     private String role;
-    private String status; // <--- THIS WAS MISSING
+    private String status;
 
     // Constructors
     public UserDto() {}
