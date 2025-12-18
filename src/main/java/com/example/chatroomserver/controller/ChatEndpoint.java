@@ -1,135 +1,86 @@
 package com.example.chatroomserver.controller;
 
-import com.example.chatroomserver.service.OnlineUsersService;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.example.chatroomserver.dto.MessageDto;
+import com.example.chatroomserver.service.MessageService;
+import com.example.chatroomserver.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.websocket.*;
+import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
-@ServerEndpoint("/chat")
+@ServerEndpoint("/chat/{conversationId}")
 public class ChatEndpoint {
 
-    private static OnlineUsersService onlineUsersService;
-
+    private static MessageService messageServiceStatic;
+    private static UserService userServiceStatic;
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
+    // Track all sessions per conversation
+    private static final Map<Integer, Set<Session>> sessionsPerConversation = new ConcurrentHashMap<>();
+
+    private Session session;
+    private Integer conversationId;
+    private Integer userId;
+
+    // Spring injection hack for @ServerEndpoint
     @Autowired
-    public void setOnlineUsersService(OnlineUsersService service) {
-        ChatEndpoint.onlineUsersService = service;
+    public void setServices(MessageService messageService, UserService userService) {
+        ChatEndpoint.messageServiceStatic = messageService;
+        ChatEndpoint.userServiceStatic = userService;
     }
 
-    private final Map<Session, String> sessionUserMap = new ConcurrentHashMap<>();
-
     @OnOpen
-    public void onOpen(Session session) {
-        System.out.println("New connection: " + session.getId());
+    public void onOpen(Session session, @PathParam("conversationId") Integer conversationId) {
+        this.session = session;
+        this.conversationId = conversationId;
+        sessionsPerConversation
+                .computeIfAbsent(conversationId, k -> ConcurrentHashMap.newKeySet())
+                .add(session);
+
+        System.out.println("New WebSocket session " + session.getId() + " for conversation " + conversationId);
     }
 
     @OnMessage
-    public void onMessage(String message, Session session) {
+    public void onMessage(String messageJson) {
         try {
-            JsonNode json = objectMapper.readTree(message);
-            if (json == null || json.isNull()) {
-                System.out.println("Received empty or null JSON: " + message);
-                return;
-            }
+            var node = objectMapper.readTree(messageJson);
 
-            JsonNode typeNode = json.get("type");
-            if (typeNode == null || typeNode.isNull()) {
-                System.out.println("Received JSON without 'type': " + message);
-                return;
-            }
+            // Expect { "userId":123, "message":"Hello!" }
+            int senderId = node.get("userId").asInt();
+            String text = node.get("message").asText();
 
-            String type = typeNode.asText();
+            // Persist to DB
+            MessageDto dto = messageServiceStatic.sendMessage(conversationId, senderId, text);
 
-            switch (type) {
-                case "login" -> {
-                    JsonNode usernameNode = json.get("username");
-                    JsonNode passwordNode = json.get("password");
-
-                    if (usernameNode == null || passwordNode == null) {
-                        send(session, "login_failed_missing_fields");
-                        return;
-                    }
-
-                    String username = usernameNode.asText();
-                    String password = passwordNode.asText();
-
-                    if (authenticate(username, password)) {
-                        sessionUserMap.put(session, username);
-                        onlineUsersService.setOnline(username);
-                        send(session, "login_success");
-                        System.out.println(username + " logged in");
-                    } else {
-                        send(session, "login_failed");
-                    }
-                }
-
-                case "heartbeat" -> {
-                    String userId = sessionUserMap.get(session);
-                    if (userId != null) {
-                        onlineUsersService.setOnline(userId);
-                        System.out.println("Heartbeat received from " + userId + " at " + System.currentTimeMillis());
-                    } else {
-                        System.out.println("Heartbeat from unknown session: " + session.getId());
-                    }
-                }
-
-                case "chat" -> {
-                    String userId = sessionUserMap.get(session);
-                    if (userId != null) {
-                        JsonNode textNode = json.get("message");
-                        if (textNode != null && !textNode.isNull()) {
-                            String text = textNode.asText();
-                            System.out.println(userId + ": " + text);
-                            onlineUsersService.setOnline(userId);
-                        } else {
-                            System.out.println("Chat message missing 'message' field from " + userId);
-                        }
-                    } else {
-                        System.out.println("Chat from unknown session: " + session.getId());
-                    }
-                }
-
-                default -> System.out.println("Unknown message type: " + type);
-            }
+            // Broadcast to all sessions of this conversation
+            String broadcastJson = objectMapper.writeValueAsString(dto);
+            sessionsPerConversation.getOrDefault(conversationId, Set.of()).forEach(s -> {
+                try { s.getBasicRemote().sendText(broadcastJson); }
+                catch (Exception e) { e.printStackTrace(); }
+            });
 
         } catch (Exception e) {
-            System.out.println("Failed to parse message: " + message);
             e.printStackTrace();
         }
     }
 
     @OnClose
-    public void onClose(Session session) {
-        String userId = sessionUserMap.remove(session);
-        if (userId != null) {
-            onlineUsersService.setOffline(userId);
-            System.out.println(userId + " disconnected");
+    public void onClose() {
+        if (conversationId != null && session != null) {
+            sessionsPerConversation.getOrDefault(conversationId, Set.of()).remove(session);
         }
+        System.out.println("WebSocket session closed: " + session.getId());
     }
 
     @OnError
-    public void onError(Session session, Throwable throwable) {
+    public void onError(Throwable throwable) {
         throwable.printStackTrace();
-    }
-
-    private boolean authenticate(String username, String password) {
-        // Replace this with a real DB lookup
-        return "user".equals(username) && "pass".equals(password);
-    }
-
-    private void send(Session session, String message) {
-        try {
-            session.getBasicRemote().sendText(message);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 }
