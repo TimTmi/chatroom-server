@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 public class MessageDto {
 
     private Integer id;
+    private Integer conversationId;
     private Integer senderId;
     private String content;
     private LocalDateTime sentAt;
@@ -12,6 +13,9 @@ public class MessageDto {
     // getters & setters
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
+
+    public Integer getConversationId() { return conversationId; }
+    public void setConversationId(Integer conversationId) { this.conversationId = conversationId; }
 
     public Integer getSenderId() { return senderId; }
     public void setSenderId(Integer senderId) { this.senderId = senderId; }
