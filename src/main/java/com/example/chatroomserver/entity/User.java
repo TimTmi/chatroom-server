@@ -37,6 +37,7 @@ public class User {
     @Column(length = 10)
     private Status status = Status.ACTIVE;
 
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
     public enum Gender { MALE, FEMALE, OTHER }

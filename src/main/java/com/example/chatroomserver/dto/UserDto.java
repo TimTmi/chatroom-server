@@ -1,6 +1,7 @@
 package com.example.chatroomserver.dto;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public class UserDto {
     private Integer id;
@@ -11,6 +12,7 @@ public class UserDto {
     private String address;
     private String gender;
     private LocalDate dob;
+    private LocalDateTime createdAt;
 
     // --- FIELDS FOR ADMIN ---
     private String role;
@@ -43,6 +45,9 @@ public class UserDto {
 
     public LocalDate getDob() { return dob; }
     public void setDob(LocalDate dob) { this.dob = dob; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
