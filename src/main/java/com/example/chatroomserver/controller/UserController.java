@@ -168,4 +168,11 @@ public class UserController {
         return ResponseEntity.ok(monthlyCounts);
     }
 
+    @GetMapping("/active-users")
+    public ResponseEntity<int[]> getActiveUsersPerMonth(@RequestParam int year) {
+        int[] monthlyCounts = userService.getMonthlyActiveUsers(year);
+        return ResponseEntity.ok(monthlyCounts);
+    }
+
+
 }
