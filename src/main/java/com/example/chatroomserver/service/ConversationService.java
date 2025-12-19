@@ -63,7 +63,13 @@ public class ConversationService {
 
     @Transactional
     public Conversation createDirectConversation(Integer userAId, Integer userBId) {
-        if (userAId.equals(userBId)) throw new RuntimeException("Cannot create DM with yourself");
+        if (userAId.equals(userBId))
+            throw new RuntimeException("Cannot create DM with yourself");
+
+        Conversation existing = findExistingDM(userAId, userBId);
+        if (existing != null) {
+            return existing;
+        }
 
         Conversation convo = new Conversation();
         convo.setType(ConversationType.PRIVATE);
@@ -73,8 +79,10 @@ public class ConversationService {
 
         addMember(convo, userAId, ConversationMember.Role.ADMIN);
         addMember(convo, userBId, ConversationMember.Role.ADMIN);
+
         return convo;
     }
+
 
     @Transactional
     public Conversation createGroupConversation(Integer creatorId, String groupName, List<Integer> memberIds, List<Integer> adminIds) {
@@ -223,5 +231,9 @@ public class ConversationService {
 
             memberRepo.save(cm);
         }
+    }
+
+    public Conversation findExistingDM(Integer userAId, Integer userBId) {
+        return conversationRepo.findPrivateConversationBetweenUsers(userAId, userBId);
     }
 }
