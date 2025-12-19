@@ -39,7 +39,7 @@ public class ConversationDto {
         private Integer id;
         private String username;
         private String fullName;
-        private String role; // <--- ADDED THIS FIELD
+        private String role; 
 
         public MemberDto() {}
 

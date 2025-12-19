@@ -7,8 +7,8 @@ public class UserFriendStatsDto {
     private String fullName;
     private String address;
     private LocalDate dob;
-    private String email;   // <--- Added
-    private String gender;  // <--- Added
+    private String email;   
+    private String gender;  
     private int friendCount;
     private int friendsOfFriendsCount;
 

@@ -1,5 +1,13 @@
 package com.example.chatroomserver.service;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.example.chatroomserver.dto.FriendshipDto;
 import com.example.chatroomserver.dto.UserDto;
 import com.example.chatroomserver.dto.UserFriendStatsDto;
@@ -7,14 +15,6 @@ import com.example.chatroomserver.entity.FriendRequest;
 import com.example.chatroomserver.entity.User;
 import com.example.chatroomserver.repository.FriendRequestRepository;
 import com.example.chatroomserver.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 public class FriendService {
@@ -123,7 +123,6 @@ public class FriendService {
                 .collect(Collectors.toList());
     }
 
-    // --- FIX: UPDATED ARGUMENT ORDER FOR STATS ---
     public List<UserFriendStatsDto> getAllUserFriendStats() {
         return userRepository.findAll().stream().map(user -> {
             int friendCount = friendRequestRepository.findAllFriends(user).size();

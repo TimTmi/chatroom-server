@@ -1,5 +1,12 @@
 package com.example.chatroomserver.service;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
 import com.example.chatroomserver.dto.ConversationDto;
 import com.example.chatroomserver.dto.GroupChatDto;
 import com.example.chatroomserver.dto.MessageDto;
@@ -11,13 +18,8 @@ import com.example.chatroomserver.repository.ConversationMemberRepository;
 import com.example.chatroomserver.repository.ConversationRepository;
 import com.example.chatroomserver.repository.MessageRepository;
 import com.example.chatroomserver.repository.UserRepository;
-import jakarta.transaction.Transactional;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.stream.Collectors;
+import jakarta.transaction.Transactional;
 
 @Service
 public class ConversationService {
@@ -83,14 +85,11 @@ public class ConversationService {
         convo.setName(groupName);
         convo.setCreatedAt(LocalDateTime.now());
         conversationRepo.save(convo);
-
-        // Creator is always ADMIN
         addMember(convo, creatorId, ConversationMember.Role.ADMIN);
 
         for (Integer userId : memberIds) {
             if (!userId.equals(creatorId)) {
                 ConversationMember.Role role = ConversationMember.Role.MEMBER;
-                // Check if this user was selected as an Admin
                 if (adminIds != null && adminIds.contains(userId)) {
                     role = ConversationMember.Role.ADMIN;
                 }
@@ -126,7 +125,6 @@ public class ConversationService {
         dto.setIsEncrypted(conversation.getIsEncrypted());
         dto.setCreatedAt(conversation.getCreatedAt());
 
-        // Members Mapping (UPDATED WITH ROLE FIX)
         List<ConversationMember> members = memberRepo.findByConversationId(conversation.getId());
         List<ConversationDto.MemberDto> memberDtos = members.stream()
                 .map(m -> {
@@ -134,8 +132,6 @@ public class ConversationService {
                             m.getUser().getId(),
                             m.getUser().getUsername(),
                             m.getUser().getFullName());
-
-                    // --- CRITICAL FIX: SET THE ROLE ---
                     memberDto.setRole(m.getRole().name());
 
                     return memberDto;
@@ -143,7 +139,6 @@ public class ConversationService {
                 .collect(Collectors.toList());
         dto.setMembers(memberDtos);
 
-        // Last message logic
         var messages = messageRepo.findByConversationIdAndIsDeletedFalseOrderBySentAtAsc(conversation.getId());
         if (!messages.isEmpty()) {
             var last = messages.get(messages.size() - 1);
@@ -198,7 +193,6 @@ public class ConversationService {
         conversationRepo.save(convo);
 
         // 2. Sync Members
-        // Get current members from DB
         List<ConversationMember> currentDbMembers = memberRepo.findByConversationId(conversationId);
 
         // A. Remove members who are NOT in the new list
@@ -213,7 +207,6 @@ public class ConversationService {
             ConversationMember cm = memberRepo.findByConversationIdAndUserId(conversationId, userId);
 
             if (cm == null) {
-                // New Member
                 User user = userRepo.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
                 cm = new ConversationMember();
                 cm.setConversation(convo);

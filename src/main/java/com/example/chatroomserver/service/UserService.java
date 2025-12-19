@@ -1,25 +1,24 @@
 package com.example.chatroomserver.service;
 
+import java.security.SecureRandom;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Base64;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.example.chatroomserver.dto.LoginHistoryDto;
 import com.example.chatroomserver.dto.UserDto;
 import com.example.chatroomserver.entity.LoginHistory;
 import com.example.chatroomserver.entity.User;
 import com.example.chatroomserver.repository.LoginHistoryRepository;
 import com.example.chatroomserver.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.beans.factory.annotation.Autowired;
-import java.security.SecureRandom;
-import java.util.Base64;
 
 @Service
 public class UserService {
@@ -33,14 +32,12 @@ public class UserService {
     @Autowired
     private LoginHistoryRepository loginHistoryRepository;
 
-    // --- NEW: Get All Users (For Admin Panel) ---
     public List<UserDto> getAllUsers() {
         return userRepository.findAll().stream()
                 .map(this::convertUserToDto)
                 .collect(Collectors.toList());
     }
 
-    // --- Helper to convert Entity -> DTO ---
     private UserDto convertUserToDto(User user) {
         UserDto dto = new UserDto();
         dto.setId(user.getId());
@@ -49,14 +46,11 @@ public class UserService {
         dto.setEmail(user.getEmail());
         dto.setAddress(user.getAddress());
 
-        // Handle Enums safely
         dto.setGender(user.getGender() != null ? user.getGender().name() : "OTHER");
         dto.setStatus(user.getStatus() != null ? user.getStatus().name() : "ACTIVE");
 
-        // Determine Role (Simple logic: if username is 'admin', they are ADMIN)
         dto.setRole(user.getUsername().equalsIgnoreCase("admin") ? "ADMIN" : "USER");
 
-        // Handle Date (Prevent Array serialization issue)
         dto.setDob(user.getDob() != null ? user.getDob().toLocalDate() : null);
 
         dto.setCreatedAt(user.getCreatedAt());
@@ -171,7 +165,7 @@ public class UserService {
 
     private LoginHistoryDto convertHistoryToDto(LoginHistory h) {
         return new LoginHistoryDto(
-                h.getLoginTime().toString(), // Converts to String "2023-..." safely
+                h.getLoginTime().toString(), 
                 h.getUser().getUsername(),
                 h.getUser().getFullName(),
                 h.getIpAddress()
@@ -201,7 +195,7 @@ public class UserService {
         List<User> users = userRepository.findByUsernameContainingOrFullNameContaining(query, query);
         return users.stream()
                 .filter(u -> !u.getId().equals(currentUserId))
-                .map(this::convertUserToDto) // Reuse helper
+                .map(this::convertUserToDto) 
                 .collect(Collectors.toList());
     }
 
@@ -212,7 +206,7 @@ public class UserService {
         // 1. Generate random password
         String newPassword = generateRandomPassword(10);
 
-        // 2. Save new password (plain for now, ideally hash it)
+        // 2. Save new password 
         user.setPassword(newPassword);
         userRepository.save(user);
 
@@ -241,7 +235,6 @@ public class UserService {
     public int[] getMonthlyUserRegistrations(int year) {
         int[] counts = new int[12];
 
-        // Fetch all users created in the specified year
         List<User> users = userRepository.findAllByCreatedAtBetween(
                 LocalDate.of(year, 1, 1).atStartOfDay(),
                 LocalDate.of(year, 12, 31).atTime(23, 59, 59)
@@ -249,7 +242,7 @@ public class UserService {
 
         for (User u : users) {
             if (u.getCreatedAt() != null) {
-                int month = u.getCreatedAt().getMonthValue(); // 1..12
+                int month = u.getCreatedAt().getMonthValue(); 
                 counts[month - 1]++;
             }
         }
@@ -265,7 +258,7 @@ public class UserService {
         List<LoginHistory> activeUsers = loginHistoryRepository.findByLoginTimeBetween(start, end);
 
         for (LoginHistory log : activeUsers) {
-            int month = log.getLoginTime().getMonthValue() - 1; // 0-based index
+            int month = log.getLoginTime().getMonthValue() - 1; 
             counts[month]++;
         }
 
