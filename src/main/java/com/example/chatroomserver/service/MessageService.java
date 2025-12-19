@@ -1,15 +1,14 @@
 package com.example.chatroomserver.service;
 
 import com.example.chatroomserver.dto.MessageDto;
-import com.example.chatroomserver.entity.Conversation;
-import com.example.chatroomserver.entity.Message;
-import com.example.chatroomserver.entity.User;
+import com.example.chatroomserver.entity.*;
 import com.example.chatroomserver.repository.ConversationMemberRepository;
 import com.example.chatroomserver.repository.ConversationRepository;
 import com.example.chatroomserver.repository.MessageRepository;
 import com.example.chatroomserver.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.*;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -59,6 +58,7 @@ public class MessageService {
     private MessageDto toDto(Message msg) {
         MessageDto dto = new MessageDto();
         dto.setId(msg.getId());
+        dto.setConversationId(msg.getConversation().getId());
         dto.setSenderId(msg.getSender().getId());
         dto.setSenderName(
                 msg.getSender().getFullName() != null
@@ -68,6 +68,43 @@ public class MessageService {
         dto.setContent(msg.getContent());
         dto.setSentAt(msg.getSentAt());
         return dto;
+    }
+
+    @Transactional
+    public void deleteMessage(Integer messageId, Integer userId) {
+
+        Message msg = messageRepo.findById(messageId)
+                .orElseThrow(() -> new RuntimeException("Message not found"));
+
+        Conversation convo = msg.getConversation();
+
+        // Must be a member of the conversation
+        if (!memberRepo.existsByConversationIdAndUserId(convo.getId(), userId)) {
+            throw new RuntimeException("Access denied");
+        }
+
+        boolean canDelete = false;
+
+        // Sender can always delete their own message
+        if (msg.getSender().getId().equals(userId)) {
+            canDelete = true;
+        }
+
+        // Admins can delete in group chats
+        if (!canDelete && convo.getType() == ConversationType.GROUP) {
+            canDelete = memberRepo.findByConversationId(convo.getId()).stream()
+                    .anyMatch(m ->
+                            m.getUser().getId().equals(userId) &&
+                                    m.getRole() == ConversationMember.Role.ADMIN
+                    );
+        }
+
+        if (!canDelete) {
+            throw new RuntimeException("User not authorized to delete this message");
+        }
+
+        msg.setDeleted(true);
+        messageRepo.save(msg);
     }
 
 }
