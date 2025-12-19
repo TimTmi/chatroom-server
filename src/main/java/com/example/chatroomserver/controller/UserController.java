@@ -40,7 +40,7 @@ public class UserController {
             dto.setStatus(user.getStatus() != null ? user.getStatus().name() : "ACTIVE");
 
             // Fix: Explicitly set the date so Admin Panel doesn't show "N/A"
-            dto.setCreatedAt(user.getCreatedAt() != null ? user.getCreatedAt().toString() : null);
+            dto.setCreatedAt(user.getCreatedAt() != null ? user.getCreatedAt() : null);
 
             return dto;
         }).collect(Collectors.toList());
@@ -160,11 +160,6 @@ public class UserController {
             e.printStackTrace();
             return ResponseEntity.status(500).body("Internal server error");
         }
-    }
-
-    @GetMapping("/search")
-    public List<UserDto> searchUsers(@RequestParam String q, @RequestParam Integer userId) {
-        return userService.searchUsers(q, userId);
     }
 
     @GetMapping("/registrations")
