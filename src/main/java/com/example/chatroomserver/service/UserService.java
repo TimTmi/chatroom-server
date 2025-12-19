@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -255,4 +256,20 @@ public class UserService {
 
         return counts;
     }
+
+    public int[] getMonthlyActiveUsers(int year) {
+        int[] counts = new int[12];
+
+        LocalDateTime start = LocalDateTime.of(year, 1, 1, 0, 0);
+        LocalDateTime end = LocalDateTime.of(year, 12, 31, 23, 59, 59);
+        List<LoginHistory> activeUsers = loginHistoryRepository.findByLoginTimeBetween(start, end);
+
+        for (LoginHistory log : activeUsers) {
+            int month = log.getLoginTime().getMonthValue() - 1; // 0-based index
+            counts[month]++;
+        }
+
+        return counts;
+    }
+
 }
