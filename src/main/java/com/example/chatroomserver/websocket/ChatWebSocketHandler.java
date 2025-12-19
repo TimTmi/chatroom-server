@@ -8,6 +8,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
@@ -21,6 +22,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         Long userId = extractUserId(session);
+        System.out.println("WebSocket connected: user " + userId + ", session " + session.getId());
 
         sessions.put(userId, session);
         sessionIdToUserId.put(session.getId(), userId);
@@ -41,16 +43,32 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         Long userId = sessionIdToUserId.remove(session.getId());
+        System.out.println("WebSocket closed: session " + session.getId() + ", user " + userId + ", reason: " + status);
+        System.out.println("removing session " + session.getId());
         if (userId != null) {
             sessions.remove(userId);
+            System.out.println("removing user " + userId);
             broadcastStatus(userId, false);
         }
+//        System.out.println("new map: ")
     }
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-        // optional: handle chat messages here
+        String payload = message.getPayload();
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            Map<String, Object> map = mapper.readValue(payload, Map.class);
+
+            if ("LOGOUT".equals(map.get("type"))) {
+                System.out.println("Received logout from session " + session.getId());
+                afterConnectionClosed(session, CloseStatus.NORMAL);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
+
 
     private void broadcastStatus(Long userId, boolean online) {
         String msg = String.format(
