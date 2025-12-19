@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.example.chatroomserver.utils.AESUtil; // Import your AESUtil class
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -77,13 +78,22 @@ public class ConversationService {
     }
 
     @Transactional
-    public Conversation createGroupConversation(Integer creatorId, String groupName, List<Integer> memberIds, List<Integer> adminIds) {
+    public Conversation createGroupConversation(Integer creatorId, String groupName, List<Integer> memberIds, List<Integer> adminIds, boolean isEncrypted) {
         if (memberIds == null || memberIds.isEmpty()) throw new RuntimeException("Group must have members");
 
         Conversation convo = new Conversation();
         convo.setType(ConversationType.GROUP);
         convo.setName(groupName);
         convo.setCreatedAt(LocalDateTime.now());
+
+        // --- ENCRYPTION LOGIC ---
+        convo.setIsEncrypted(isEncrypted);
+        if (isEncrypted) {
+            // Generate a random AES key for this group
+            convo.setSecretKey(AESUtil.generateKey());
+        }
+        // ------------------------
+
         conversationRepo.save(convo);
         addMember(convo, creatorId, ConversationMember.Role.ADMIN);
 
@@ -122,7 +132,12 @@ public class ConversationService {
         dto.setId(conversation.getId());
         dto.setType(conversation.getType().name());
         dto.setName(conversation.getName());
+
+        // --- ENCRYPTION FIELDS ---
         dto.setIsEncrypted(conversation.getIsEncrypted());
+        dto.setSecretKey(conversation.getSecretKey());
+        // -------------------------
+
         dto.setCreatedAt(conversation.getCreatedAt());
 
         List<ConversationMember> members = memberRepo.findByConversationId(conversation.getId());
@@ -182,7 +197,7 @@ public class ConversationService {
         conversationRepo.delete(convo);
     }
 
-    // --- 5. UPDATE GROUP METHOD (New) ---
+    // --- 5. UPDATE GROUP METHOD ---
     @Transactional
     public void updateGroupConversation(Integer conversationId, String groupName, List<Integer> memberIds, List<Integer> adminIds) {
         Conversation convo = conversationRepo.findById(conversationId)
