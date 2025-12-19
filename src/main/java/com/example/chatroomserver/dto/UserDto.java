@@ -18,9 +18,6 @@ public class UserDto {
     private String password;
     private String status;
 
-    // --- FIX: ADDED THIS FIELD ---
-    private String createdAt;
-
     // Getters & Setters
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
@@ -54,7 +51,4 @@ public class UserDto {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
-
-    public String getCreatedAt() { return createdAt; }
-    public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
 }
