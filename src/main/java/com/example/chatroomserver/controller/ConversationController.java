@@ -30,15 +30,17 @@ public class ConversationController {
         return conversationService.getAllGroups();
     }
 
-    // --- 2. CREATE GROUP (Merged: Uses your version with adminIds) ---
+    // --- 2. CREATE GROUP (Updated for Encryption) ---
     @PostMapping("/group")
     public Conversation createGroup(
             @RequestParam Integer creatorId,
             @RequestParam String groupName,
             @RequestParam List<Integer> memberIds,
-            @RequestParam(required = false) List<Integer> adminIds 
+            @RequestParam(required = false) List<Integer> adminIds,
+            @RequestParam(required = false, defaultValue = "false") boolean isEncrypted // <--- NEW PARAMETER
     ) {
-        return conversationService.createGroupConversation(creatorId, groupName, memberIds, adminIds);
+        // Updated to pass isEncrypted to the service
+        return conversationService.createGroupConversation(creatorId, groupName, memberIds, adminIds, isEncrypted);
     }
 
     @PostMapping("/dm")
@@ -54,7 +56,7 @@ public class ConversationController {
         return conversationService.getUserConversationsDto(userId);
     }
 
-    // --- 3. DELETE CONVERSATION (Merged: From your friend's file) ---
+    // --- 3. DELETE CONVERSATION ---
     @DeleteMapping("/{conversationId}")
     public void deleteConversation(
             @PathVariable Integer conversationId,
@@ -63,7 +65,7 @@ public class ConversationController {
         conversationService.deleteConversation(conversationId, userId);
     }
 
-    // --- 3. UPDATE GROUP (New Endpoint) ---
+    // --- 4. UPDATE GROUP ---
     @PutMapping("/group/{conversationId}")
     public void updateGroup(
             @PathVariable Integer conversationId,

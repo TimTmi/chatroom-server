@@ -29,8 +29,13 @@ public class Conversation {
     @Column(name = "is_encrypted")
     private Boolean isEncrypted = false;
 
+    // --- NEW FIELD FOR ENCRYPTION ---
+    @Column(name = "secret_key")
+    private String secretKey;
+    // --------------------------------
+
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now(); 
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     // --- getters & setters ---
 
@@ -65,6 +70,16 @@ public class Conversation {
     public void setIsEncrypted(Boolean isEncrypted) {
         this.isEncrypted = isEncrypted;
     }
+
+    // --- NEW GETTER & SETTER ---
+    public String getSecretKey() {
+        return secretKey;
+    }
+
+    public void setSecretKey(String secretKey) {
+        this.secretKey = secretKey;
+    }
+    // ---------------------------
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
