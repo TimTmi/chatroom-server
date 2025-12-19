@@ -149,9 +149,15 @@ public class UserController {
         }
     }
 
-
     @GetMapping("/search")
     public List<UserDto> searchUsers(@RequestParam String q, @RequestParam Integer userId) {
         return userService.searchUsers(q, userId);
     }
+
+    @GetMapping("/registrations")
+    public ResponseEntity<int[]> getUserRegistrations(@RequestParam int year) {
+        int[] monthlyCounts = userService.getMonthlyUserRegistrations(year);
+        return ResponseEntity.ok(monthlyCounts);
+    }
+
 }

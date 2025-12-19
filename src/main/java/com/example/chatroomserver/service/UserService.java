@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -56,6 +57,8 @@ public class UserService {
 
         // Handle Date (Prevent Array serialization issue)
         dto.setDob(user.getDob() != null ? user.getDob().toLocalDate() : null);
+
+        dto.setCreatedAt(user.getCreatedAt());
 
         return dto;
     }
@@ -232,5 +235,24 @@ public class UserService {
         message.setText("Hello,\n\nYour password has been reset. Your new password is:\n\n" +
                 newPassword + "\n\nPlease change it after logging in.");
         mailSender.send(message);
+    }
+
+    public int[] getMonthlyUserRegistrations(int year) {
+        int[] counts = new int[12];
+
+        // Fetch all users created in the specified year
+        List<User> users = userRepository.findAllByCreatedAtBetween(
+                LocalDate.of(year, 1, 1).atStartOfDay(),
+                LocalDate.of(year, 12, 31).atTime(23, 59, 59)
+        );
+
+        for (User u : users) {
+            if (u.getCreatedAt() != null) {
+                int month = u.getCreatedAt().getMonthValue(); // 1..12
+                counts[month - 1]++;
+            }
+        }
+
+        return counts;
     }
 }
