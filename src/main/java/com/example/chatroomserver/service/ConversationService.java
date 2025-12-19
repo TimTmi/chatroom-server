@@ -151,4 +151,36 @@ public class ConversationService {
 
         return dto;
     }
+
+    @Transactional
+    public void deleteConversation(Integer conversationId, Integer userId) {
+        Conversation convo = conversationRepo.findById(conversationId)
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+
+        // Fetch members
+        List<ConversationMember> members = memberRepo.findByConversationId(conversationId);
+
+        boolean canDelete = false;
+
+        if (convo.getType() == ConversationType.PRIVATE) {
+            // Any member can delete a private conversation
+            canDelete = members.stream().anyMatch(m -> m.getUser().getId().equals(userId));
+        } else if (convo.getType() == ConversationType.GROUP) {
+            // Only ADMIN can delete group conversation
+            canDelete = members.stream()
+                    .anyMatch(m -> m.getUser().getId().equals(userId) && m.getRole() == ConversationMember.Role.ADMIN);
+        }
+
+        if (!canDelete) throw new RuntimeException("User not authorized to delete this conversation");
+
+        // Delete messages first to preserve FK integrity
+        messageRepo.deleteAllByConversationId(conversationId);
+
+        // Delete member links
+        memberRepo.deleteAll(members);
+
+        // Delete conversation itself
+        conversationRepo.delete(convo);
+    }
+
 }

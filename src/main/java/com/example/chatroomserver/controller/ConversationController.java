@@ -44,4 +44,14 @@ public class ConversationController {
     public List<ConversationDto> listUserConversations(@RequestParam Integer userId) {
         return conversationService.getUserConversationsDto(userId);
     }
+
+    @DeleteMapping("/{conversationId}")
+    public void deleteConversation(
+            @PathVariable Integer conversationId,
+            @RequestParam Integer userId
+    ) {
+        System.out.println(conversationId);
+        conversationService.deleteConversation(conversationId, userId);
+    }
+
 }

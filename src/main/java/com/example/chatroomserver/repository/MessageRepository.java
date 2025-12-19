@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface MessageRepository extends JpaRepository<Message, Integer> {
     List<Message> findByConversationIdAndIsDeletedFalseOrderBySentAtAsc(Integer conversationId);
+    void deleteAllByConversationId(Integer conversationId);
 }
