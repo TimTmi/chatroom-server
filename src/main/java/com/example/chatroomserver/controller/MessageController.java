@@ -1,6 +1,7 @@
 package com.example.chatroomserver.controller;
 
 import com.example.chatroomserver.dto.MessageDto;
+import com.example.chatroomserver.service.MessageSearchService;
 import com.example.chatroomserver.service.MessageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -13,6 +14,9 @@ public class MessageController {
 
     @Autowired
     private MessageService messageService;
+
+    @Autowired
+    MessageSearchService messageSearchService;
 
     @PostMapping
     public MessageDto send(
@@ -30,4 +34,13 @@ public class MessageController {
     ) {
         return messageService.getMessages(conversationId, userId);
     }
+
+    @GetMapping("/search/all")
+    public List<MessageDto> searchAllMessages(
+            @RequestParam Integer userId,
+            @RequestParam String query
+    ) {
+        return messageSearchService.searchAllMessages(userId, query);
+    }
+
 }
