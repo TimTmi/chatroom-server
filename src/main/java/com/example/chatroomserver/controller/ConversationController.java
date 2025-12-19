@@ -54,4 +54,15 @@ public class ConversationController {
     ) {
         conversationService.deleteConversation(conversationId, userId);
     }
+
+    // --- 3. UPDATE GROUP (New Endpoint) ---
+    @PutMapping("/group/{conversationId}")
+    public void updateGroup(
+            @PathVariable Integer conversationId,
+            @RequestParam String groupName,
+            @RequestParam List<Integer> memberIds,
+            @RequestParam(required = false) List<Integer> adminIds
+    ) {
+        conversationService.updateGroupConversation(conversationId, groupName, memberIds, adminIds);
+    }
 }
