@@ -6,7 +6,6 @@ public class GroupChatDto {
     private Integer id;
     private String groupName;
     private String createdAt;
-    // CHANGED: String -> List<String>
     private List<String> adminUsernames;
     private List<String> memberNames;
 

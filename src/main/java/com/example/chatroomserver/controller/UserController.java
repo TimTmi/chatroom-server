@@ -1,17 +1,27 @@
 package com.example.chatroomserver.controller;
 
+import java.util.List;
+import java.util.stream.Collectors; // Ensure you have this class from your friend
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.example.chatroomserver.dto.ChangePasswordRequest;
-import com.example.chatroomserver.dto.ForgotPasswordRequest; // Ensure you have this class from your friend
+import com.example.chatroomserver.dto.ForgotPasswordRequest;
 import com.example.chatroomserver.dto.LoginHistoryDto;
 import com.example.chatroomserver.dto.UserDto;
 import com.example.chatroomserver.entity.User;
 import com.example.chatroomserver.repository.UserRepository;
 import com.example.chatroomserver.service.UserService;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users")
@@ -38,8 +48,6 @@ public class UserController {
             dto.setGender(user.getGender() != null ? user.getGender().name() : "OTHER");
             dto.setDob(user.getDob() != null ? user.getDob().toLocalDate() : null);
             dto.setStatus(user.getStatus() != null ? user.getStatus().name() : "ACTIVE");
-
-            // Fix: Explicitly set the date so Admin Panel doesn't show "N/A"
             dto.setCreatedAt(user.getCreatedAt() != null ? user.getCreatedAt() : null);
 
             return dto;

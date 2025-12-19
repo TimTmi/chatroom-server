@@ -1,13 +1,21 @@
 package com.example.chatroomserver.controller;
 
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.example.chatroomserver.dto.ConversationDto;
 import com.example.chatroomserver.dto.GroupChatDto;
 import com.example.chatroomserver.entity.Conversation;
 import com.example.chatroomserver.service.ConversationService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/conversations")
@@ -28,7 +36,7 @@ public class ConversationController {
             @RequestParam Integer creatorId,
             @RequestParam String groupName,
             @RequestParam List<Integer> memberIds,
-            @RequestParam(required = false) List<Integer> adminIds // Your Fix
+            @RequestParam(required = false) List<Integer> adminIds 
     ) {
         return conversationService.createGroupConversation(creatorId, groupName, memberIds, adminIds);
     }

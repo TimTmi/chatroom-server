@@ -7,7 +7,6 @@ public class UserStatusDto implements Serializable {
     private Long userId;
     private boolean online;
 
-    // Required by Jackson
     public UserStatusDto() {
     }
 
