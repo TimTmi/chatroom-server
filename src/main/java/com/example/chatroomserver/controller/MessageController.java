@@ -43,4 +43,12 @@ public class MessageController {
         return messageSearchService.searchAllMessages(userId, query);
     }
 
+    @DeleteMapping("/{messageId}")
+    public void deleteMessage(
+            @PathVariable Integer messageId,
+            @RequestParam Integer userId
+    ) {
+        messageService.deleteMessage(messageId, userId);
+    }
+
 }
