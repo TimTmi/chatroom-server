@@ -27,7 +27,7 @@ public class ConversationService {
     @Autowired private UserRepository userRepo;
     @Autowired private MessageRepository messageRepo;
 
-    // --- 1. ADMIN METHODS (Restored) ---
+    // --- 1. ADMIN METHODS ---
 
     public List<GroupChatDto> getAllGroups() {
         return conversationRepo.findAll().stream()
@@ -36,14 +36,14 @@ public class ConversationService {
                 .collect(Collectors.toList());
     }
 
+    // Merged: Uses your logic to support LIST of admins
     private GroupChatDto convertToGroupDto(Conversation c) {
         List<ConversationMember> members = memberRepo.findByConversationId(c.getId());
 
-        String adminUsername = members.stream()
+        List<String> adminUsernames = members.stream()
                 .filter(m -> m.getRole() == ConversationMember.Role.ADMIN)
                 .map(m -> m.getUser().getUsername())
-                .findFirst()
-                .orElse("Unknown");
+                .collect(Collectors.toList());
 
         List<String> memberNames = members.stream()
                 .map(m -> m.getUser().getUsername())
@@ -53,12 +53,12 @@ public class ConversationService {
                 c.getId(),
                 c.getName() != null ? c.getName() : "Unnamed Group",
                 c.getCreatedAt() != null ? c.getCreatedAt().toString() : LocalDateTime.now().toString(),
-                adminUsername,
+                adminUsernames,
                 memberNames
         );
     }
 
-    // --- 2. CREATION METHODS (Fixed) ---
+    // --- 2. CREATION METHODS ---
 
     @Transactional
     public Conversation createDirectConversation(Integer userAId, Integer userBId) {
@@ -67,7 +67,7 @@ public class ConversationService {
         Conversation convo = new Conversation();
         convo.setType(ConversationType.PRIVATE);
         convo.setName("DM");
-        convo.setCreatedAt(LocalDateTime.now()); // Ensure Date
+        convo.setCreatedAt(LocalDateTime.now());
         conversationRepo.save(convo);
 
         addMember(convo, userAId, ConversationMember.Role.ADMIN);
@@ -75,21 +75,28 @@ public class ConversationService {
         return convo;
     }
 
+    // Merged: Uses your logic to accept adminIds list
     @Transactional
-    public Conversation createGroupConversation(Integer creatorId, String groupName, List<Integer> memberIds) {
+    public Conversation createGroupConversation(Integer creatorId, String groupName, List<Integer> memberIds, List<Integer> adminIds) {
         if (memberIds == null || memberIds.isEmpty()) throw new RuntimeException("Group must have members");
 
         Conversation convo = new Conversation();
         convo.setType(ConversationType.GROUP);
-        convo.setName(groupName); // <--- Set Name
-        convo.setCreatedAt(LocalDateTime.now()); // <--- Set Date
+        convo.setName(groupName);
+        convo.setCreatedAt(LocalDateTime.now());
         conversationRepo.save(convo);
 
+        // Creator is always ADMIN
         addMember(convo, creatorId, ConversationMember.Role.ADMIN);
 
         for (Integer userId : memberIds) {
             if (!userId.equals(creatorId)) {
-                addMember(convo, userId, ConversationMember.Role.MEMBER);
+                ConversationMember.Role role = ConversationMember.Role.MEMBER;
+                // Check if this user was selected as an Admin
+                if (adminIds != null && adminIds.contains(userId)) {
+                    role = ConversationMember.Role.ADMIN;
+                }
+                addMember(convo, userId, role);
             }
         }
         return convo;
@@ -104,7 +111,7 @@ public class ConversationService {
         memberRepo.save(cm);
     }
 
-    // --- 3. FRIEND'S CHAT DTO LOGIC (Preserved) ---
+    // --- 3. FRIEND'S CHAT DTO LOGIC ---
 
     public List<ConversationDto> getUserConversationsDto(Integer userId) {
         return memberRepo.findByUserId(userId)
@@ -121,7 +128,6 @@ public class ConversationService {
         dto.setIsEncrypted(conversation.getIsEncrypted());
         dto.setCreatedAt(conversation.getCreatedAt());
 
-        // Members
         List<ConversationMember> members = memberRepo.findByConversationId(conversation.getId());
         List<ConversationDto.MemberDto> memberDtos = members.stream()
                 .map(m -> new ConversationDto.MemberDto(
@@ -131,7 +137,6 @@ public class ConversationService {
                 .collect(Collectors.toList());
         dto.setMembers(memberDtos);
 
-        // Last message logic
         var messages = messageRepo.findByConversationIdAndIsDeletedFalseOrderBySentAtAsc(conversation.getId());
         if (!messages.isEmpty()) {
             var last = messages.get(messages.size() - 1);
@@ -148,39 +153,29 @@ public class ConversationService {
             lastMessageDto.setSentAt(last.getSentAt());
             dto.setLastMessage(lastMessageDto);
         }
-
         return dto;
     }
 
+    // --- 4. DELETE METHOD (Merged: From your friend's file) ---
     @Transactional
     public void deleteConversation(Integer conversationId, Integer userId) {
         Conversation convo = conversationRepo.findById(conversationId)
                 .orElseThrow(() -> new RuntimeException("Conversation not found"));
 
-        // Fetch members
         List<ConversationMember> members = memberRepo.findByConversationId(conversationId);
-
         boolean canDelete = false;
 
         if (convo.getType() == ConversationType.PRIVATE) {
-            // Any member can delete a private conversation
             canDelete = members.stream().anyMatch(m -> m.getUser().getId().equals(userId));
         } else if (convo.getType() == ConversationType.GROUP) {
-            // Only ADMIN can delete group conversation
             canDelete = members.stream()
                     .anyMatch(m -> m.getUser().getId().equals(userId) && m.getRole() == ConversationMember.Role.ADMIN);
         }
 
         if (!canDelete) throw new RuntimeException("User not authorized to delete this conversation");
 
-        // Delete messages first to preserve FK integrity
         messageRepo.deleteAllByConversationId(conversationId);
-
-        // Delete member links
         memberRepo.deleteAll(members);
-
-        // Delete conversation itself
         conversationRepo.delete(convo);
     }
-
 }

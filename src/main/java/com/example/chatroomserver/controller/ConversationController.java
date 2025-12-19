@@ -16,20 +16,21 @@ public class ConversationController {
     @Autowired
     private ConversationService conversationService;
 
-    // --- 1. ADMIN ENDPOINT (Restored) ---
+    // --- 1. ADMIN ENDPOINT ---
     @GetMapping("/groups/all")
     public List<GroupChatDto> getAllGroups() {
         return conversationService.getAllGroups();
     }
 
-    // --- 2. CREATE GROUP (Fixed with Group Name) ---
+    // --- 2. CREATE GROUP (Merged: Uses your version with adminIds) ---
     @PostMapping("/group")
     public Conversation createGroup(
             @RequestParam Integer creatorId,
             @RequestParam String groupName,
-            @RequestParam List<Integer> memberIds
+            @RequestParam List<Integer> memberIds,
+            @RequestParam(required = false) List<Integer> adminIds // Your Fix
     ) {
-        return conversationService.createGroupConversation(creatorId, groupName, memberIds);
+        return conversationService.createGroupConversation(creatorId, groupName, memberIds, adminIds);
     }
 
     @PostMapping("/dm")
@@ -45,13 +46,12 @@ public class ConversationController {
         return conversationService.getUserConversationsDto(userId);
     }
 
+    // --- 3. DELETE CONVERSATION (Merged: From your friend's file) ---
     @DeleteMapping("/{conversationId}")
     public void deleteConversation(
             @PathVariable Integer conversationId,
             @RequestParam Integer userId
     ) {
-        System.out.println(conversationId);
         conversationService.deleteConversation(conversationId, userId);
     }
-
 }
