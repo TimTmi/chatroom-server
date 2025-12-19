@@ -12,7 +12,7 @@ public interface ConversationMemberRepository
 
     List<ConversationMember> findByUserId(Integer userId);
     List<ConversationMember> findByConversationId(Integer conversationId);
-
+    ConversationMember findByConversationIdAndUserId(Integer conversationId, Integer userId);
 }
 
 

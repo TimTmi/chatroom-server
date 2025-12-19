@@ -36,7 +36,6 @@ public class ConversationService {
                 .collect(Collectors.toList());
     }
 
-    // Merged: Uses your logic to support LIST of admins
     private GroupChatDto convertToGroupDto(Conversation c) {
         List<ConversationMember> members = memberRepo.findByConversationId(c.getId());
 
@@ -75,7 +74,6 @@ public class ConversationService {
         return convo;
     }
 
-    // Merged: Uses your logic to accept adminIds list
     @Transactional
     public Conversation createGroupConversation(Integer creatorId, String groupName, List<Integer> memberIds, List<Integer> adminIds) {
         if (memberIds == null || memberIds.isEmpty()) throw new RuntimeException("Group must have members");
@@ -128,15 +126,24 @@ public class ConversationService {
         dto.setIsEncrypted(conversation.getIsEncrypted());
         dto.setCreatedAt(conversation.getCreatedAt());
 
+        // Members Mapping (UPDATED WITH ROLE FIX)
         List<ConversationMember> members = memberRepo.findByConversationId(conversation.getId());
         List<ConversationDto.MemberDto> memberDtos = members.stream()
-                .map(m -> new ConversationDto.MemberDto(
-                        m.getUser().getId(),
-                        m.getUser().getUsername(),
-                        m.getUser().getFullName()))
+                .map(m -> {
+                    ConversationDto.MemberDto memberDto = new ConversationDto.MemberDto(
+                            m.getUser().getId(),
+                            m.getUser().getUsername(),
+                            m.getUser().getFullName());
+
+                    // --- CRITICAL FIX: SET THE ROLE ---
+                    memberDto.setRole(m.getRole().name());
+
+                    return memberDto;
+                })
                 .collect(Collectors.toList());
         dto.setMembers(memberDtos);
 
+        // Last message logic
         var messages = messageRepo.findByConversationIdAndIsDeletedFalseOrderBySentAtAsc(conversation.getId());
         if (!messages.isEmpty()) {
             var last = messages.get(messages.size() - 1);
@@ -153,10 +160,11 @@ public class ConversationService {
             lastMessageDto.setSentAt(last.getSentAt());
             dto.setLastMessage(lastMessageDto);
         }
+
         return dto;
     }
 
-    // --- 4. DELETE METHOD (Merged: From your friend's file) ---
+    // --- 4. DELETE METHOD ---
     @Transactional
     public void deleteConversation(Integer conversationId, Integer userId) {
         Conversation convo = conversationRepo.findById(conversationId)
@@ -177,5 +185,50 @@ public class ConversationService {
         messageRepo.deleteAllByConversationId(conversationId);
         memberRepo.deleteAll(members);
         conversationRepo.delete(convo);
+    }
+
+    // --- 5. UPDATE GROUP METHOD (New) ---
+    @Transactional
+    public void updateGroupConversation(Integer conversationId, String groupName, List<Integer> memberIds, List<Integer> adminIds) {
+        Conversation convo = conversationRepo.findById(conversationId)
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+
+        // 1. Update Name
+        convo.setName(groupName);
+        conversationRepo.save(convo);
+
+        // 2. Sync Members
+        // Get current members from DB
+        List<ConversationMember> currentDbMembers = memberRepo.findByConversationId(conversationId);
+
+        // A. Remove members who are NOT in the new list
+        for (ConversationMember cm : currentDbMembers) {
+            if (!memberIds.contains(cm.getUser().getId())) {
+                memberRepo.delete(cm);
+            }
+        }
+
+        // B. Add new members or Update existing roles
+        for (Integer userId : memberIds) {
+            ConversationMember cm = memberRepo.findByConversationIdAndUserId(conversationId, userId);
+
+            if (cm == null) {
+                // New Member
+                User user = userRepo.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+                cm = new ConversationMember();
+                cm.setConversation(convo);
+                cm.setUser(user);
+                cm.setJoinedAt(LocalDateTime.now());
+            }
+
+            // Update Role
+            if (adminIds != null && adminIds.contains(userId)) {
+                cm.setRole(ConversationMember.Role.ADMIN);
+            } else {
+                cm.setRole(ConversationMember.Role.MEMBER);
+            }
+
+            memberRepo.save(cm);
+        }
     }
 }
