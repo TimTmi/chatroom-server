@@ -4,7 +4,9 @@ import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -257,9 +259,19 @@ public class UserService {
         LocalDateTime end = LocalDateTime.of(year, 12, 31, 23, 59, 59);
         List<LoginHistory> activeUsers = loginHistoryRepository.findByLoginTimeBetween(start, end);
 
+        // Use a set for each month to track unique user IDs
+        Set<Integer>[] monthlyUsers = new HashSet[12];
+        for (int i = 0; i < 12; i++) {
+            monthlyUsers[i] = new HashSet<>();
+        }
+
         for (LoginHistory log : activeUsers) {
-            int month = log.getLoginTime().getMonthValue() - 1; 
-            counts[month]++;
+            int month = log.getLoginTime().getMonthValue() - 1;
+            monthlyUsers[month].add(log.getUser().getId()); // assuming getUser().getId() exists
+        }
+
+        for (int i = 0; i < 12; i++) {
+            counts[i] = monthlyUsers[i].size();
         }
 
         return counts;
