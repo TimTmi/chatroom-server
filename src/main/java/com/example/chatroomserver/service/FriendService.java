@@ -22,27 +22,40 @@ public class FriendService {
     @Autowired private UserRepository userRepository;
     @Autowired private FriendRequestRepository friendRequestRepository;
 
-    // --- SEND REQUEST ---
     @Transactional
     public void sendRequest(Integer senderId, Integer receiverId) {
         if (senderId.equals(receiverId)) throw new RuntimeException("Cannot add yourself");
 
-        if (friendRequestRepository.findBySenderIdAndReceiverId(senderId, receiverId).isPresent()) {
-            throw new RuntimeException("Request already sent");
-        }
+        // 1. Check if YOU sent a request (or are already friends)
+        friendRequestRepository.findBySenderIdAndReceiverId(senderId, receiverId).ifPresent(req -> {
+            if (req.getStatus() == FriendRequest.Status.ACCEPTED) {
+                throw new RuntimeException("You are already friends.");
+            } else if (req.getStatus() == FriendRequest.Status.PENDING) {
+                throw new RuntimeException("Request already sent.");
+            } else if (req.getStatus() == FriendRequest.Status.BLOCKED) {
+                throw new RuntimeException("You cannot add this user.");
+            }
+        });
 
         User sender = userRepository.findById(senderId).orElseThrow(() -> new RuntimeException("Sender not found"));
         User receiver = userRepository.findById(receiverId).orElseThrow(() -> new RuntimeException("Receiver not found"));
 
-        if (friendRequestRepository.findBySenderIdAndReceiverId(receiverId, senderId).isPresent()) {
-            throw new RuntimeException("User already sent you a request. Check your inbox.");
-        }
+        // 2. Check if THEY sent a request (or are already friends)
+        friendRequestRepository.findBySenderIdAndReceiverId(receiverId, senderId).ifPresent(req -> {
+            if (req.getStatus() == FriendRequest.Status.ACCEPTED) {
+                throw new RuntimeException("You are already friends.");
+            } else if (req.getStatus() == FriendRequest.Status.PENDING) {
+                throw new RuntimeException("User already sent you a request. Check your inbox.");
+            } else if (req.getStatus() == FriendRequest.Status.BLOCKED) {
+                throw new RuntimeException("You cannot add this user.");
+            }
+        });
 
+        // 3. Create new request
         FriendRequest req = new FriendRequest(sender, receiver);
         friendRequestRepository.save(req);
     }
 
-    // --- FRIEND LIST ---
     public List<UserDto> getFriendList(Integer userId) {
         User user = userRepository.findById(userId).orElseThrow();
         return friendRequestRepository.findAllFriends(user).stream()
@@ -53,7 +66,6 @@ public class FriendService {
                 .collect(Collectors.toList());
     }
 
-    // --- PENDING REQUESTS ---
     public List<UserDto> getPendingRequests(Integer userId) {
         return friendRequestRepository.findByReceiverIdAndStatus(userId, FriendRequest.Status.PENDING)
                 .stream()
@@ -61,9 +73,24 @@ public class FriendService {
                 .collect(Collectors.toList());
     }
 
-    // --- ACCEPT / REJECT ---
-    public void respondToRequest(Integer requestId, boolean accept) {
-        FriendRequest req = friendRequestRepository.findById(requestId).orElseThrow();
+    // *** THIS IS THE FIX ***
+    // Replaces the old 'respondToRequest'
+    public void respondToRequestByUsers(Integer senderId, Integer receiverId, boolean accept) {
+        System.out.println("Processing Friend Response: Sender=" + senderId + ", Receiver=" + receiverId + ", Accept=" + accept);
+
+        // 1. Find request where Sender is Friend and Receiver is You
+        FriendRequest req = friendRequestRepository.findBySenderIdAndReceiverId(senderId, receiverId)
+                .orElse(null);
+
+        // 2. Inverse check (just in case)
+        if (req == null) {
+            req = friendRequestRepository.findBySenderIdAndReceiverId(receiverId, senderId).orElse(null);
+        }
+
+        if (req == null) {
+            throw new RuntimeException("Friend Request NOT FOUND between " + senderId + " and " + receiverId);
+        }
+
         if (accept) {
             req.setStatus(FriendRequest.Status.ACCEPTED);
             friendRequestRepository.save(req);
@@ -72,11 +99,9 @@ public class FriendService {
         }
     }
 
-    // --- BLOCK USER ---
     public void blockUser(Integer blockerId, Integer targetId) {
         User blocker = userRepository.findById(blockerId).orElseThrow();
         User target = userRepository.findById(targetId).orElseThrow();
-
         List<FriendRequest> relations = friendRequestRepository.findRelationship(blocker, target);
 
         if (!relations.isEmpty()) {
@@ -103,7 +128,6 @@ public class FriendService {
     public void unblockUser(Integer blockerId, Integer targetId) {
         User blocker = userRepository.findById(blockerId).orElseThrow();
         User target = userRepository.findById(targetId).orElseThrow();
-
         List<FriendRequest> relations = friendRequestRepository.findRelationship(blocker, target);
         friendRequestRepository.deleteAll(relations);
     }
@@ -115,7 +139,6 @@ public class FriendService {
         friendRequestRepository.deleteAll(relations);
     }
 
-    // --- SEARCH ---
     public List<UserDto> searchUsers(String query, Integer currentUserId) {
         return userRepository.findByUsernameContainingOrFullNameContaining(query, query).stream()
                 .filter(u -> !u.getId().equals(currentUserId))
@@ -126,21 +149,15 @@ public class FriendService {
     public List<UserFriendStatsDto> getAllUserFriendStats() {
         return userRepository.findAll().stream().map(user -> {
             int friendCount = friendRequestRepository.findAllFriends(user).size();
-
             return new UserFriendStatsDto(
-                    user.getUsername(),
-                    user.getFullName(),
-                    user.getAddress(),                                          // 3. Address (String)
-                    user.getDob() != null ? user.getDob().toLocalDate() : null, // 4. DOB (LocalDate)
-                    user.getEmail(),                                            // 5. Email (String)
-                    user.getGender() != null ? user.getGender().name() : "N/A", // 6. Gender (String)
-                    friendCount,
-                    0
+                    user.getUsername(), user.getFullName(), user.getAddress(),
+                    user.getDob() != null ? user.getDob().toLocalDate() : null,
+                    user.getEmail(), user.getGender() != null ? user.getGender().name() : "N/A",
+                    friendCount, 0
             );
         }).collect(Collectors.toList());
     }
 
-    // --- HELPER ---
     private UserDto convertToDto(User u) {
         UserDto dto = new UserDto();
         dto.setId(u.getId());
