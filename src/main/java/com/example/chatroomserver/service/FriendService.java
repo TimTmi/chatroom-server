@@ -169,5 +169,27 @@ public class FriendService {
         return dto;
     }
 
-    public List<FriendshipDto> getFriendshipDetails(Integer userId) { return new ArrayList<>(); }
+    public List<FriendshipDto> getFriendshipDetails(Integer userId) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+
+        return friendRequestRepository.findAllFriends(user).stream()
+                .map(req -> {
+                    // 1. Identify the friend
+                    User friend = req.getSender().getId().equals(userId) ? req.getReceiver() : req.getSender();
+
+                    FriendshipDto dto = new FriendshipDto();
+
+                    // 2. Set Basic Info
+                    dto.setId(friend.getId());
+                    dto.setUsername(friend.getUsername());
+                    dto.setFullName(friend.getFullName() != null ? friend.getFullName() : ""); // Prevent null
+                    String status = (friend.getStatus() != null) ? friend.getStatus().name() : "OFFLINE";
+                    dto.setStatus(status);
+                    String since = (req.getCreatedAt() != null) ? req.getCreatedAt().toString() : "N/A";
+                    dto.setSince(since);
+
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
 }
