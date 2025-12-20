@@ -74,7 +74,7 @@ public class ConversationService {
 
         Conversation convo = new Conversation();
         convo.setType(ConversationType.PRIVATE);
-        convo.setName("DM");
+        convo.setName(null);
         convo.setCreatedAt(LocalDateTime.now());
         conversationRepo.save(convo);
 
